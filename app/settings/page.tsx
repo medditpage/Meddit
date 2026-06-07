@@ -5,6 +5,8 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { createClient } from "@/utils/supabase/client";
 import { useStore } from "@/lib/store";
 
+
+
 export default function SettingsPage() {
   const user = useStore((state) => state.user);
   const login = useStore((state) => state.login);
@@ -48,12 +50,21 @@ export default function SettingsPage() {
 
   React.useEffect(() => {
     const fetchProfile = async () => {
-      if (!user?.id) return;
       const supabase = createClient();
+
+      // Get auth user directly instead of relying on Zustand
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+      if (!authUser) {
+        setLoading(false);
+        return;
+      }
+
       const { data } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", user.id)
+        .eq("id", authUser.id)
         .single();
 
       if (data) {
@@ -110,11 +121,16 @@ export default function SettingsPage() {
   };
 
   const handleSave = async () => {
-    if (!user?.id) return;
+    const supabase = createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    if (!authUser) return;
+    const userId = authUser.id;
+
     setSaving(true);
     setMessage(null);
 
-    const supabase = createClient();
     const avatarInitials = name
       .split(" ")
       .map((n) => n[0])
@@ -158,12 +174,20 @@ export default function SettingsPage() {
     const { error } = await supabase
       .from("profiles")
       .update(updateData)
-      .eq("id", user.id);
+      .eq("id", userId);
 
     if (error) {
+      console.error("Save error:", JSON.stringify(error));
       setMessage({ type: "error", text: "Failed to save. " + error.message });
     } else {
-      login({ ...user, name, role: profile?.role, avatarInitials });
+      if (user?.id) {
+        login({
+          id: user.id,
+          name,
+          role: profile?.role || "doctor",
+          avatarInitials,
+        });
+      }
       setMessage({ type: "success", text: "Profile updated successfully!" });
     }
     setSaving(false);
