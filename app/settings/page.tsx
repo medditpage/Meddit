@@ -174,8 +174,7 @@ export default function SettingsPage() {
 
     const { error } = await supabase
       .from("profiles")
-      .update(updateData)
-      .eq("id", authUserId);
+      .upsert({ id: authUserId, ...updateData });
 
     if (error) {
       console.error("Save error:", JSON.stringify(error));
