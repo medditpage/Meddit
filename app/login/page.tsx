@@ -75,10 +75,11 @@ export default function LoginPage() {
           });
           hasError = true;
         }
-        if (!data.phone || data.phone.trim() === "") {
+        const cleanPhone = data.phone?.replace(/\D/g, "") || "";
+        if (!cleanPhone || cleanPhone.length !== 10) {
           setError("phone", {
             type: "manual",
-            message: "Mobile Number is required.",
+            message: "Enter a valid 10-digit mobile number.",
           });
           hasError = true;
         }
@@ -297,8 +298,9 @@ export default function LoginPage() {
                       <input
                         type="tel"
                         {...register("phone")}
+                        maxLength={10}
                         className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600"
-                        placeholder="+91 98765 43210"
+                        placeholder="9876543210"
                       />
                       {errors.phone && (
                         <p className="text-red-500 text-xs">
