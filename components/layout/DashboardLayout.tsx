@@ -184,6 +184,28 @@ export function DashboardLayout({
         {/* Content Area: Ye sidebar ke baaju mein hi rahega */}
         <main className="flex-1 w-full min-w-0 p-6 md:p-10">{children}</main>
       </div>
+      {/* Mobile Sidebar Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 sm:hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          {/* Drawer */}
+          <div className="absolute left-0 top-0 h-full w-64 bg-white shadow-xl z-10">
+            <FloatingSidebar
+              position="left"
+              items={sidebarItems}
+              activeId={activeIdValue}
+              onItemClick={(id) => {
+                router.push(id);
+                setIsMobileMenuOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       <Footer companyName={companyName} emergencyNumber="108" />
     </div>
