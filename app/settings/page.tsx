@@ -107,6 +107,30 @@ export default function SettingsPage() {
   const [languages, setLanguages] = React.useState("");
   const [mciNumber, setMciNumber] = React.useState("");
   const [availability, setAvailability] = React.useState("");
+  const [availSlots, setAvailSlots] = React.useState<any[]>([]);
+  const [savingAvailability, setSavingAvailability] = React.useState(false);
+  const [availabilityMessage, setAvailabilityMessage] = React.useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
+  const dayNames = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+
+  const defaultSlot = {
+    day_of_week: 0,
+    start_time: "10:00",
+    end_time: "18:00",
+    slot_duration_minutes: 30,
+    is_active: true,
+  };
   const [isPublic, setIsPublic] = React.useState(true);
   const [cvUrl, setCvUrl] = React.useState("");
   const [aadhaarUrl, setAadhaarUrl] = React.useState("");
@@ -130,6 +154,8 @@ export default function SettingsPage() {
   const [emergencyRelation, setEmergencyRelation] = React.useState("");
   const [patientAadhaarUrl, setPatientAadhaarUrl] = React.useState("");
 
+  
+
   const populateForm = (data: any) => {
     setProfile(data);
     setName(data.name || "");
@@ -148,7 +174,7 @@ export default function SettingsPage() {
     setExperienceYears(data.experience_years?.toString() || "");
     setLanguages(data.languages || "");
     setMciNumber(data.mci_number || "");
-    setAvailability(data.availability || "");
+    setAvailability(data.availability || ""); // keep this as is - it's the string field
     setIsPublic(data.is_public ?? true);
     setCvUrl(data.cv_url || "");
     setAadhaarUrl(data.aadhaar_url || "");
@@ -189,6 +215,15 @@ export default function SettingsPage() {
         .single();
       if (error) console.error("Fetch error:", error);
       if (data) populateForm(data);
+
+      // ADD THIS HERE
+      const { data: availData } = await supabase
+        .from("doctor_availability")
+        .select("*")
+        .eq("doctor_id", authUser.id)
+        .order("day_of_week", { ascending: true });
+      if (availData) setAvailSlots(availData);
+
       setLoading(false);
     };
     fetchProfile();
@@ -275,6 +310,76 @@ export default function SettingsPage() {
     if (!error) onSuccess(path);
     else console.error("Upload error:", error);
     setUploading(false);
+  };
+
+  const handleAddSlot = () => {
+    setAvailSlots([
+      ...availSlots,
+      { ...defaultSlot, id: `temp_${Date.now()}` },
+    ]);
+  };
+
+  const handleUpdateSlot = (index: number, field: string, value: any) => {
+    const updated = [...availSlots];
+    updated[index] = { ...updated[index], [field]: value };
+    setAvailSlots(updated);
+  };
+
+  const handleRemoveSlot = (index: number) => {
+    setAvailSlots(availSlots.filter((_, i) => i !== index));
+  };
+
+  const handleSaveAvailability = async () => {
+    if (!authUserId) return;
+    setSavingAvailability(true);
+    setAvailabilityMessage(null);
+    const supabase = createClient();
+
+    try {
+      // Delete all existing slots
+      await supabase
+        .from("doctor_availability")
+        .delete()
+        .eq("doctor_id", authUserId);
+
+      // Insert new slots
+      if (availSlots.length > 0) {
+        const toInsert = availSlots.map((slot) => ({
+          doctor_id: authUserId,
+          day_of_week: parseInt(slot.day_of_week),
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+          slot_duration_minutes: parseInt(slot.slot_duration_minutes),
+          is_active: slot.is_active,
+        }));
+
+        const { error } = await supabase
+          .from("doctor_availability")
+          .insert(toInsert);
+
+        if (error) throw error;
+      }
+
+      setAvailabilityMessage({
+        type: "success",
+        text: "Availability saved successfully!",
+      });
+
+      // Refresh
+      const { data } = await supabase
+        .from("doctor_availability")
+        .select("*")
+        .eq("doctor_id", authUserId)
+        .order("day_of_week", { ascending: true });
+      if (data) setAvailSlots(data);
+    } catch (err: any) {
+      console.error("Availability save error:", err);
+      setAvailabilityMessage({
+        type: "error",
+        text: "Failed to save: " + err.message,
+      });
+    }
+    setSavingAvailability(false);
   };
 
   const handleSave = async () => {
@@ -381,7 +486,7 @@ export default function SettingsPage() {
         .select("*")
         .eq("id", authUserId)
         .single();
-      if (data) populateForm(data);
+      if (data) populateForm(data);   
     }
     setSaving(false);
   };
@@ -1183,6 +1288,233 @@ export default function SettingsPage() {
               />
             </div>
           </>
+        )}
+
+        {/* AVAILABILITY SECTION — Doctor only */}
+        {isDoctor && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h2 className="font-bold text-slate-900 text-lg">
+                  Consultation Availability
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Set your available days and time slots for patient bookings
+                </p>
+              </div>
+              <button
+                onClick={handleAddSlot}
+                className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold transition-colors"
+              >
+                + Add Slot
+              </button>
+            </div>
+
+            {availSlots.length === 0 ? (
+              <div className="text-center py-8 bg-slate-50 rounded-xl">
+                <p className="text-3xl mb-2">📅</p>
+                <p className="text-slate-600 font-semibold text-sm">
+                  No availability set
+                </p>
+                <p className="text-slate-400 text-xs mt-1">
+                  Add your available days so patients can book appointments
+                </p>
+                <button
+                  onClick={handleAddSlot}
+                  className="mt-3 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold transition-colors"
+                >
+                  + Add First Slot
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {availSlots.map((slot, index) => (
+                  <div
+                    key={slot.id || index}
+                    className={`p-4 rounded-xl border-2 transition-colors ${
+                      slot.is_active
+                        ? "border-teal-200 bg-teal-50/30"
+                        : "border-slate-200 bg-slate-50"
+                    }`}
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                      {/* Day */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                          Day
+                        </label>
+                        <select
+                          value={slot.day_of_week}
+                          onChange={(e) =>
+                            handleUpdateSlot(
+                              index,
+                              "day_of_week",
+                              e.target.value,
+                            )
+                          }
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                        >
+                          {dayNames.map((day, i) => (
+                            <option key={day} value={i}>
+                              {day}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Start Time */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                          Start Time
+                        </label>
+                        <select
+                          value={slot.start_time}
+                          onChange={(e) =>
+                            handleUpdateSlot(
+                              index,
+                              "start_time",
+                              e.target.value,
+                            )
+                          }
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                        >
+                          {Array.from({ length: 24 }, (_, h) =>
+                            ["00", "30"].map((m) => {
+                              const time = `${h.toString().padStart(2, "0")}:${m}`;
+                              const period = h >= 12 ? "PM" : "AM";
+                              const displayH =
+                                h > 12 ? h - 12 : h === 0 ? 12 : h;
+                              return (
+                                <option key={time} value={time}>
+                                  {displayH}:{m} {period}
+                                </option>
+                              );
+                            }),
+                          ).flat()}
+                        </select>
+                      </div>
+
+                      {/* End Time */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                          End Time
+                        </label>
+                        <select
+                          value={slot.end_time}
+                          onChange={(e) =>
+                            handleUpdateSlot(index, "end_time", e.target.value)
+                          }
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                        >
+                          {Array.from({ length: 24 }, (_, h) =>
+                            ["00", "30"].map((m) => {
+                              const time = `${h.toString().padStart(2, "0")}:${m}`;
+                              const period = h >= 12 ? "PM" : "AM";
+                              const displayH =
+                                h > 12 ? h - 12 : h === 0 ? 12 : h;
+                              return (
+                                <option key={time} value={time}>
+                                  {displayH}:{m} {period}
+                                </option>
+                              );
+                            }),
+                          ).flat()}
+                        </select>
+                      </div>
+
+                      {/* Slot Duration */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                          Slot (mins)
+                        </label>
+                        <select
+                          value={slot.slot_duration_minutes}
+                          onChange={(e) =>
+                            handleUpdateSlot(
+                              index,
+                              "slot_duration_minutes",
+                              e.target.value,
+                            )
+                          }
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                        >
+                          {[15, 30, 45, 60].map((d) => (
+                            <option key={d} value={d}>
+                              {d} min
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() =>
+                            handleUpdateSlot(
+                              index,
+                              "is_active",
+                              !slot.is_active,
+                            )
+                          }
+                          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors border ${
+                            slot.is_active
+                              ? "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100"
+                              : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          {slot.is_active ? "Active" : "Inactive"}
+                        </button>
+                        <button
+                          onClick={() => handleRemoveSlot(index)}
+                          className="px-3 py-2 rounded-xl bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-colors text-xs font-semibold"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Slot Preview */}
+                    {slot.start_time && slot.end_time && (
+                      <p className="text-xs text-slate-400 mt-2">
+                        {(() => {
+                          const [sh, sm] = slot.start_time
+                            .split(":")
+                            .map(Number);
+                          const [eh, em] = slot.end_time.split(":").map(Number);
+                          const totalMins = eh * 60 + em - (sh * 60 + sm);
+                          const slots = Math.floor(
+                            totalMins / slot.slot_duration_minutes,
+                          );
+                          return `📊 ${slots} slots available (${slot.slot_duration_minutes} min each)`;
+                        })()}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Save Availability */}
+            {availabilityMessage && (
+              <div
+                className={`px-4 py-3 rounded-xl text-sm font-medium ${
+                  availabilityMessage.type === "success"
+                    ? "bg-teal-50 text-teal-700 border border-teal-100"
+                    : "bg-red-50 text-red-700 border border-red-100"
+                }`}
+              >
+                {availabilityMessage.text}
+              </div>
+            )}
+
+            <button
+              onClick={handleSaveAvailability}
+              disabled={savingAvailability}
+              className="w-full py-3 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white font-semibold rounded-xl transition-colors text-sm"
+            >
+              {savingAvailability ? "Saving..." : "💾 Save Availability"}
+            </button>
+          </div>
         )}
 
         {/* Danger Zone */}
