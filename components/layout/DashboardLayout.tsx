@@ -226,7 +226,9 @@ export function DashboardLayout({
         </div>
 
         {/* Content Area: Ye sidebar ke baaju mein hi rahega */}
-        <main className="flex-1 w-full min-w-0 p-6 md:p-10">{children}</main>
+        <main className="flex-1 w-full min-w-0 p-4 sm:p-6 md:p-10">
+          {children}
+        </main>
       </div>
       {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (

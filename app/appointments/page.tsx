@@ -1,5 +1,5 @@
 "use client";
-
+// appointments/page.tsx
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";

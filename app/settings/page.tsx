@@ -1,5 +1,5 @@
 "use client";
-
+// app/seeting/page.tsx
 import * as React from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { createClient } from "@/utils/supabase/client";

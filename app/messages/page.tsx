@@ -33,7 +33,10 @@ export default function MessagingPage() {
     React.useState<MessageCategory | null>(null);
   const [otherProfile, setOtherProfile] = React.useState<any>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
-
+  const [isCalling, setIsCalling] = React.useState(false);
+  const [incomingCallUrl, setIncomingCallUrl] = React.useState<string | null>(
+    null,
+  );
   // ─── Init ─────────────────────────────────────────────────
   React.useEffect(() => {
     const init = async () => {
@@ -173,6 +176,35 @@ export default function MessagingPage() {
       supabase.removeChannel(channel);
     };
   }, [activeConversation, currentUserId]);
+  // ─── Realtime: Global Incoming Calls ──────────────────────
+  React.useEffect(() => {
+    if (!currentUserId) return;
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel(`global_calls_${currentUserId}_${Date.now()}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          // Only listen for messages sent TO this specific user
+          filter: `receiver_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          // If the message is a video call invitation, trigger the popup!
+          if (payload.new.file_type === "call_invite") {
+            setIncomingCallUrl(payload.new.file_url);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId]);
 
   // ─── Fetch other profile when conversation changes ────────
   React.useEffect(() => {
@@ -320,6 +352,56 @@ export default function MessagingPage() {
 
     setSending(false);
   };
+  // ─── Start Video Call ───────────────────────────────────────
+  // ─── Start Video Call (Jitsi Free Bypass) ───────────────────
+  // ─── Start Video Call (Jitsi Free Bypass) ───────────────────
+  const handleStartCall = async () => {
+    if (!activeConversation || !currentUserId || isCalling) return;
+    setIsCalling(true);
+
+    try {
+      // 1. Generate a secure, unique Jitsi room URL locally (No API needed!)
+      // 1. Generate the URL with configuration to start automatically
+      const uniqueRoomName = `Medit-Consult-${activeConversation.id.replace(/-/g, "")}-${Date.now()}`;
+      const jitsiUrl = `https://meet.jit.si/${uniqueRoomName}#config.prejoinPageEnabled=false&config.startAudioMuted=false&config.startVideoMuted=false`;
+      const supabase = createClient();
+      const otherId =
+        activeConversation.participant_1 === currentUserId
+          ? activeConversation.participant_2
+          : activeConversation.participant_1;
+
+      // 2. Insert the invitation directly into the chat
+      const { error } = await supabase.from("messages").insert({
+        conversation_id: activeConversation.id,
+        sender_id: currentUserId,
+        receiver_id: otherId,
+        content: "📞 Video call started",
+        file_url: jitsiUrl, // Use the free Jitsi link
+        file_type: "call_invite",
+        is_read: false,
+      });
+
+      if (error) {
+        console.error("Database error inserting call:", error);
+        alert("Failed to send call invitation.");
+        return;
+      }
+
+      // 3. Update the conversation preview
+      await supabase
+        .from("conversations")
+        .update({
+          last_message: "📞 Video call invitation",
+          last_message_at: new Date().toISOString(),
+        })
+        .eq("id", activeConversation.id);
+    } catch (error) {
+      console.error("Call error:", error);
+      alert("Something went wrong starting the call.");
+    } finally {
+      setIsCalling(false);
+    }
+  };
 
   // ─── Helpers ──────────────────────────────────────────────
   const getOtherParticipant = (conv: any) => {
@@ -419,7 +501,9 @@ export default function MessagingPage() {
     <DashboardLayout>
       <div className="flex h-[calc(100vh-160px)] bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm relative">
         {/* ── Left: Inbox ──────────────────────────────────── */}
-        <div className="hidden md:flex flex-col w-[300px] shrink-0 border-r border-slate-200">
+        <div
+          className={`${activeConversation ? "hidden md:flex" : "flex"} flex-col w-full md:w-[300px] shrink-0 border-r border-slate-200`}
+        >
           <div className="p-4 border-b border-slate-200 bg-slate-50">
             <h2 className="font-bold text-slate-900">Messages</h2>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -468,7 +552,10 @@ export default function MessagingPage() {
         </div>
 
         {/* ── Center: Chat Window ───────────────────────────── */}
-        <div className="flex-1 flex flex-col min-w-0">
+        {/* ── Center: Chat Window ───────────────────────────── */}
+        <div
+          className={`${activeConversation ? "flex" : "hidden md:flex"} flex-1 flex-col min-w-0`}
+        >
           {!activeConversation ? (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
               <p className="text-5xl mb-4">💬</p>
@@ -483,6 +570,20 @@ export default function MessagingPage() {
             <>
               {/* Chat Header */}
               <div className="p-4 border-b border-slate-200 bg-white flex items-center gap-3 shadow-sm">
+                <button
+                  onClick={() => setActiveConversation(null)}
+                  className="md:hidden p-1 -ml-1 text-slate-500 hover:text-teal-600 shrink-0"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                  </svg>
+                </button>
                 <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-bold shrink-0 text-sm">
                   {otherParticipant?.avatar_initials ||
                     otherParticipant?.name?.charAt(0) ||
@@ -510,18 +611,32 @@ export default function MessagingPage() {
 
                 {/* Info panel toggle — only show for doctor viewing patient */}
                 {/* Info panel toggle — show for EVERYONE */}
-                <button
-                  onClick={() => setIsPanelOpen(!isPanelOpen)}
-                  className={`p-2 rounded-xl text-sm font-semibold transition-colors ${
-                    isPanelOpen
-                      ? "bg-teal-100 text-teal-700"
-                      : "bg-slate-100 text-slate-600 hover:bg-teal-50 hover:text-teal-700"
-                  }`}
-                >
-                  {otherParticipant?.role === "patient"
-                    ? "🏥 Patient Info"
-                    : "👨‍⚕️ Doctor Profile"}
-                </button>
+                {/* ── Chat Actions (Call & Info) ── */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleStartCall}
+                    disabled={isCalling}
+                    className="flex items-center gap-1.5 p-2 sm:px-3 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                  >
+                    <span>📹</span>
+                    <span className="hidden sm:inline">
+                      {isCalling ? "Connecting..." : "Video Call"}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsPanelOpen(!isPanelOpen)}
+                    className={`hidden lg:flex p-2 px-3 rounded-xl text-sm font-semibold transition-colors ${
+                      isPanelOpen
+                        ? "bg-teal-100 text-teal-700"
+                        : "bg-slate-100 text-slate-600 hover:bg-teal-50 hover:text-teal-700"
+                    }`}
+                  >
+                    {otherParticipant?.role === "patient"
+                      ? "🏥 Patient Info"
+                      : "👨‍⚕️ Doctor Profile"}
+                  </button>
+                </div>
               </div>
 
               {/* Messages */}
@@ -546,7 +661,7 @@ export default function MessagingPage() {
                         timestamp={formatTime(msg.created_at)}
                         isOwn={msg.sender_id === currentUserId}
                         isRead={msg.is_read}
-                        fileUrl={msg.file_url} 
+                        fileUrl={msg.file_url}
                         fileType={msg.file_type}
                       />
                     </React.Fragment>
@@ -598,6 +713,41 @@ export default function MessagingPage() {
           />
         </div>
       </div>
+      {/* ── Incoming Call Modal Overlay ── */}
+      {incomingCallUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center animate-in zoom-in-95 duration-200 border border-slate-100">
+            <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 relative">
+              {/* Pulsing animation ring */}
+              <div className="absolute inset-0 rounded-full border-4 border-indigo-500 animate-ping opacity-20"></div>
+              <p className="text-4xl relative z-10">📹</p>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900">
+              Incoming Video Call
+            </h3>
+            <p className="text-sm text-slate-500 mb-8 mt-2">
+              The doctor is ready and waiting for you in the consultation room.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setIncomingCallUrl(null)}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                Decline
+              </button>
+              <a
+                href={incomingCallUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setIncomingCallUrl(null)}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-600/20"
+              >
+                Accept Call
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

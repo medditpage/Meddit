@@ -30,6 +30,22 @@ const Icons = {
       <line x1="12" x2="12.01" y1="17" y2="17" />
     </svg>
   ),
+  Video: ({ className }: { className?: string }) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <polygon points="23 7 16 12 23 17 23 7"></polygon>
+      <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+    </svg>
+  ),
   Phone: ({ className }: { className?: string }) => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -297,7 +313,8 @@ export const MessageBubble = React.forwardRef<
     const hideDefaultText =
       (content === "Sent a image" ||
         content === "Sent a pdf" ||
-        content === "Sent a document") &&
+        content === "Sent a document" ||
+        content === "📞 Video call started") &&
       fileUrl;
 
     return (
@@ -317,9 +334,32 @@ export const MessageBubble = React.forwardRef<
           {...props}
         >
           {/* NEW: Render the attached file if one exists */}
+          {/* NEW: Render the attached file or Call Invite if one exists */}
           {fileUrl && (
             <div className="mb-2">
-              {fileType === "image" ? (
+              {fileType === "call_invite" ? (
+                /* --- VIDEO CALL INVITE CARD --- */
+                <div className="bg-slate-900 text-white p-4 rounded-xl flex flex-col items-center gap-3 w-[200px] mt-1 shadow-md">
+                  <div className="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center">
+                    <Icons.Video className="w-6 h-6 text-indigo-400" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-bold">Video Consultation</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Secure Daily.co Room
+                    </p>
+                  </div>
+                  <a
+                    href={resolvedUrl || fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-indigo-600 hover:bg-indigo-500 w-full text-center py-2.5 rounded-lg text-sm font-bold transition-colors"
+                  >
+                    Join Call
+                  </a>
+                </div>
+              ) : fileType === "image" ? (
+                /* --- IMAGE ATTACHMENT --- */
                 resolvedUrl ? (
                   <a
                     href={resolvedUrl}
@@ -339,6 +379,7 @@ export const MessageBubble = React.forwardRef<
                   </div>
                 )
               ) : (
+                /* --- PDF/DOCUMENT ATTACHMENT --- */
                 <a
                   href={resolvedUrl || "#"}
                   target="_blank"
