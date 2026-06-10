@@ -357,10 +357,11 @@ export default function MessagingPage() {
         .from("user_public_keys")
         .select("public_key_jwk")
         .eq("user_id", otherId)
-        .single();
+        .maybeSingle();
 
       if (keyError || !keyData) {
-        console.warn("Recipient hasn't set up keys yet. Sending plaintext.");
+        console.warn("Recipient hasn't set up keys yet. Storing message in Plaintext fallback.");
+        encryptedContent = finalContent;
       } else {
         // Scramble the message text before saving to database
         const { encryptMessage } = await import("@/utils/crypto");
@@ -371,6 +372,7 @@ export default function MessagingPage() {
       }
     } catch (cryptoErr) {
       console.error("Encryption failed:", cryptoErr);
+      encryptedContent = finalContent;
     }
     // ─────────────────────────────────────
 
