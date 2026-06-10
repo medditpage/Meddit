@@ -1,5 +1,5 @@
 "use client";
-
+// it is app/doctors/[id]/page.tsx
 import * as React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";

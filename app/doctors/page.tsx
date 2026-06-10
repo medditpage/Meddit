@@ -1,5 +1,5 @@
 "use client";
-
+// app/doctors/page.tsx
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -115,7 +115,6 @@ export default function DoctorsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            
             {filtered.map((doc) => (
               <div
                 key={doc.id}
@@ -185,6 +184,7 @@ export default function DoctorsPage() {
                 </div>
 
                 {/* Card Actions */}
+                {/* Card Actions */}
                 <div className="px-6 pb-5 flex gap-2">
                   <button
                     onClick={() => router.push(`/doctors/${doc.id}`)}
@@ -193,10 +193,37 @@ export default function DoctorsPage() {
                     View Profile
                   </button>
                   <button
-                    onClick={() => router.push(`/doctors/${doc.id}?book=true`)}
+                    onClick={async () => {
+                      const supabase = createClient();
+                      const {
+                        data: { user },
+                      } = await supabase.auth.getUser();
+                      if (!user) return router.push("/login");
+
+                      const p1 = user.id < doc.id ? user.id : doc.id;
+                      const p2 = user.id < doc.id ? doc.id : user.id;
+
+                      const { data: existing } = await supabase
+                        .from("conversations")
+                        .select("id")
+                        .eq("participant_1", p1)
+                        .eq("participant_2", p2)
+                        .single();
+
+                      if (!existing) {
+                        await supabase.from("conversations").insert({
+                          participant_1: p1,
+                          participant_2: p2,
+                          last_message: "",
+                          last_message_at: new Date().toISOString(),
+                        });
+                      }
+
+                      router.push("/messages");
+                    }}
                     className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm transition-colors"
                   >
-                    Book Now
+                    💬 Message
                   </button>
                 </div>
               </div>
