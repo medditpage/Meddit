@@ -14,6 +14,7 @@ import { ConversationStatusBadge } from "@/components/chat/ConversationalStatusB
 import { MessageCategorySelector } from "@/components/chat/MessageCategoryTag";
 import type { MessageCategory } from "@/components/chat/MessageCategoryTag";
 import { createClient } from "@/utils/supabase/client";
+import { getLocalPrivateKey, generateE2EEKeyPair } from "@/utils/crypto";
 
 export default function MessagingPage() {
   const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
@@ -38,6 +39,49 @@ export default function MessagingPage() {
     null,
   );
   // ─── Init ─────────────────────────────────────────────────
+
+  // ─── E2EE: Initialize Keys on Login ──────────────────────────
+  React.useEffect(() => {
+    if (!currentUserId) return;
+
+    const initializeE2EE = async () => {
+      const supabase = createClient();
+
+      // 1. Check if this device already has a private key stored
+      const localPrivateKey = await getLocalPrivateKey();
+
+      if (!localPrivateKey) {
+        console.log(
+          "No cryptographic key pair found on this device. Generating new key pair...",
+        );
+
+        // 2. Generate a fresh RSA-OAEP 2048-bit key pair locally
+        const { publicKeyJwk } = await generateE2EEKeyPair();
+
+        // 3. Register the public key to Supabase so others can encrypt for us
+        const { error } = await supabase.from("user_public_keys").upsert(
+          {
+            user_id: currentUserId,
+            public_key_jwk: publicKeyJwk,
+          },
+          { onConflict: "user_id" },
+        );
+
+        if (error) {
+          console.error(
+            "Failed to register public key to server:",
+            error.message,
+          );
+        } else {
+          console.log("Successfully registered secure public key to server.");
+        }
+      } else {
+        console.log("Cryptographic key pair verified on-device.");
+      }
+    };
+
+    initializeE2EE();
+  }, [currentUserId]);
   React.useEffect(() => {
     const init = async () => {
       const supabase = createClient();
@@ -251,6 +295,7 @@ export default function MessagingPage() {
 
   // ─── Send message ─────────────────────────────────────────
   // ─── Send message (Updated for File Uploads) ────────────────
+  // ─── Send message (Updated with E2EE Encryption) ───────────
   const handleSend = async (text: string, file?: File | null) => {
     // Prevent sending if BOTH text and file are empty
     if (
@@ -304,7 +349,32 @@ export default function MessagingPage() {
     // Default text if they only send a file
     const finalContent = text.trim() ? text : `Sent a ${finalFileType}`;
 
-    // Optimistic update for UI (so it feels instant)
+    // ─── NEW: E2EE ENCRYPTION PIPELINE ───
+    let encryptedContent = finalContent;
+    try {
+      // Fetch the other user's public cryptographic key
+      const { data: keyData, error: keyError } = await supabase
+        .from("user_public_keys")
+        .select("public_key_jwk")
+        .eq("user_id", otherId)
+        .single();
+
+      if (keyError || !keyData) {
+        console.warn("Recipient hasn't set up keys yet. Sending plaintext.");
+      } else {
+        // Scramble the message text before saving to database
+        const { encryptMessage } = await import("@/utils/crypto");
+        encryptedContent = await encryptMessage(
+          finalContent,
+          keyData.public_key_jwk as JsonWebKey,
+        );
+      }
+    } catch (cryptoErr) {
+      console.error("Encryption failed:", cryptoErr);
+    }
+    // ─────────────────────────────────────
+
+    // Optimistic update for UI (so it feels instant for the sender)
     const tempId = `temp_${Date.now()}`;
     setMessages((prev) => [
       ...prev,
@@ -313,7 +383,7 @@ export default function MessagingPage() {
         conversation_id: activeConversation.id,
         sender_id: currentUserId,
         receiver_id: otherId,
-        content: finalContent,
+        content: finalContent, // Keep it readable locally for you
         is_read: false,
         created_at: new Date().toISOString(),
         file_url: finalFileUrl,
@@ -322,12 +392,12 @@ export default function MessagingPage() {
     ]);
     setInputValue("");
 
-    // 2. Insert into the database
+    // 2. Insert into the database (Now saving the ENCRYPTED string)
     const { error } = await supabase.from("messages").insert({
       conversation_id: activeConversation.id,
       sender_id: currentUserId,
       receiver_id: otherId,
-      content: finalContent,
+      content: encryptedContent, // <-- Saved securely in the cloud
       is_read: false,
       file_url: finalFileUrl,
       file_type: finalFileType,
@@ -337,9 +407,10 @@ export default function MessagingPage() {
       await supabase
         .from("conversations")
         .update({
+          // Hide the text preview in the side sidebar inbox list for privacy
           last_message:
             finalFileType === "text"
-              ? finalContent
+              ? "🔒 Encrypted Message"
               : `📎 ${finalFileType} attached`,
           last_message_at: new Date().toISOString(),
         })

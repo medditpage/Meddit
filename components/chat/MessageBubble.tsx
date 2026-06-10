@@ -5,6 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { createClient } from "@/utils/supabase/client";
+import { getLocalPrivateKey, decryptMessage } from "@/utils/crypto";
 
 // --- UTILITIES ---
 export function cn(...inputs: ClassValue[]) {
@@ -178,7 +179,6 @@ const Icons = {
   ),
 };
 
-// --- VARIANTS ---
 const messageBubbleVariants = cva(
   "relative max-w-[80%] rounded-2xl px-4 py-2.5 text-sm transition-all",
   {
@@ -218,12 +218,10 @@ export interface MessageBubbleProps
   isRead?: boolean;
   isLoading?: boolean;
   disabled?: boolean;
-  // NEW: Added props to handle files
   fileUrl?: string;
   fileType?: string;
 }
 
-// --- COMPONENT ---
 export const MessageBubble = React.forwardRef<
   HTMLDivElement,
   MessageBubbleProps
@@ -249,35 +247,61 @@ export const MessageBubble = React.forwardRef<
     const isDark =
       defaultVariant === "primary" || defaultVariant === "inverted";
 
-    // NEW: State to hold the securely resolved URL
     const [resolvedUrl, setResolvedUrl] = React.useState<string | null>(null);
+    // NEW: Text state for decrypted message rendering
+    const [decryptedText, setDecryptedText] = React.useState<string>("");
 
+    // Manage secure view links
     React.useEffect(() => {
       if (!fileUrl) return;
 
-      // If it's already a full HTTP link, just use it
       if (fileUrl.startsWith("http")) {
         setResolvedUrl(fileUrl);
         return;
       }
 
-      // Otherwise, ask Supabase for a secure 1-hour view link
       const fetchSecureUrl = async () => {
         const supabase = createClient();
         const { data } = await supabase.storage
           .from("chat-files")
-          .createSignedUrl(fileUrl, 3600); // 1 hour expiry
+          .createSignedUrl(fileUrl, 3600);
 
         if (data) {
           const cleanUrl = `/api/file-proxy?url=${encodeURIComponent(data.signedUrl)}`;
-        setResolvedUrl(cleanUrl);
+          setResolvedUrl(cleanUrl);
         }
       };
 
       fetchSecureUrl();
     }, [fileUrl]);
 
-    // --- Typing indicator skeleton ---
+    // NEW: Inplace asynchronous decryption loop
+    React.useEffect(() => {
+      const runDecryption = async () => {
+        const rawContent = typeof content === "string" ? content : "";
+
+        // If it's plaintext or not an encrypted JSON string configuration, display directly
+        if (!rawContent || !rawContent.trim().startsWith("{")) {
+          setDecryptedText(rawContent);
+          return;
+        }
+
+        try {
+          const privateKey = await getLocalPrivateKey();
+          if (!privateKey) {
+            setDecryptedText("🔐 [Private key missing on this device]");
+            return;
+          }
+          const decrypted = await decryptMessage(rawContent, privateKey);
+          setDecryptedText(decrypted);
+        } catch (err) {
+          setDecryptedText("🔐 [Decryption processing failure]");
+        }
+      };
+
+      runDecryption();
+    }, [content]);
+
     if (isLoading) {
       return (
         <div
@@ -309,12 +333,13 @@ export const MessageBubble = React.forwardRef<
       );
     }
 
-    // Determine if we should hide the default text ("Sent a image") when an actual file is rendered
+    const displayContent =
+      decryptedText || (typeof content === "string" ? content : "");
     const hideDefaultText =
-      (content === "Sent a image" ||
-        content === "Sent a pdf" ||
-        content === "Sent a document" ||
-        content === "📞 Video call started") &&
+      (displayContent === "Sent a image" ||
+        displayContent === "Sent a pdf" ||
+        displayContent === "Sent a document" ||
+        displayContent === "📞 Video call started") &&
       fileUrl;
 
     return (
@@ -333,12 +358,9 @@ export const MessageBubble = React.forwardRef<
           )}
           {...props}
         >
-          {/* NEW: Render the attached file if one exists */}
-          {/* NEW: Render the attached file or Call Invite if one exists */}
           {fileUrl && (
             <div className="mb-2">
               {fileType === "call_invite" ? (
-                /* --- VIDEO CALL INVITE CARD --- */
                 <div className="bg-slate-900 text-white p-4 rounded-xl flex flex-col items-center gap-3 w-[200px] mt-1 shadow-md">
                   <div className="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center">
                     <Icons.Video className="w-6 h-6 text-indigo-400" />
@@ -346,7 +368,7 @@ export const MessageBubble = React.forwardRef<
                   <div className="text-center">
                     <p className="text-sm font-bold">Video Consultation</p>
                     <p className="text-[10px] text-slate-400 mt-0.5">
-                      Secure Daily.co Room
+                      Secure Jitsi Room
                     </p>
                   </div>
                   <a
@@ -359,7 +381,6 @@ export const MessageBubble = React.forwardRef<
                   </a>
                 </div>
               ) : fileType === "image" ? (
-                /* --- IMAGE ATTACHMENT --- */
                 resolvedUrl ? (
                   <a
                     href={resolvedUrl}
@@ -379,7 +400,6 @@ export const MessageBubble = React.forwardRef<
                   </div>
                 )
               ) : (
-                /* --- PDF/DOCUMENT ATTACHMENT --- */
                 <a
                   href={resolvedUrl || "#"}
                   target="_blank"
@@ -399,9 +419,10 @@ export const MessageBubble = React.forwardRef<
             </div>
           )}
 
-          {/* Render the text content (unless it's just the fallback text) */}
           {!hideDefaultText && (
-            <div className="whitespace-pre-wrap leading-relaxed">{content}</div>
+            <div className="whitespace-pre-wrap leading-relaxed">
+              {displayContent}
+            </div>
           )}
 
           <div

@@ -1,5 +1,5 @@
 "use client";
-// it is app/doctors/[id]/page.tsx
+// app/doctors/[id]/page.tsx
 import * as React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -24,7 +24,6 @@ export default function DoctorProfilePage() {
     text: string;
   } | null>(null);
 
-  // Booking form
   const [selectedDate, setSelectedDate] = React.useState("");
   const [selectedTime, setSelectedTime] = React.useState("");
   const [consultationType, setConsultationType] = React.useState("online");
@@ -49,7 +48,6 @@ export default function DoctorProfilePage() {
         setCurrentProfile(profile);
       }
 
-      // Fetch doctor profile
       const { data: doctorData } = await supabase
         .from("profiles")
         .select("*")
@@ -57,7 +55,6 @@ export default function DoctorProfilePage() {
         .single();
       if (doctorData) setDoctor(doctorData);
 
-      // Fetch availability
       const { data: avail } = await supabase
         .from("doctor_availability")
         .select("*")
@@ -70,7 +67,6 @@ export default function DoctorProfilePage() {
     init();
   }, [id]);
 
-  // Generate time slots when date selected
   React.useEffect(() => {
     if (!selectedDate || availability.length === 0) return;
 
@@ -83,7 +79,6 @@ export default function DoctorProfilePage() {
       return;
     }
 
-    // Generate slots
     const slots: string[] = [];
     const [startH, startM] = dayAvail.start_time.split(":").map(Number);
     const [endH, endM] = dayAvail.end_time.split(":").map(Number);
@@ -103,7 +98,6 @@ export default function DoctorProfilePage() {
     setAvailableSlots(slots);
     setSelectedTime("");
 
-    // Fetch already booked slots for this date
     const fetchBooked = async () => {
       const supabase = createClient();
       const { data } = await supabase
@@ -167,10 +161,7 @@ export default function DoctorProfilePage() {
     setSaving(false);
   };
 
-  // Get min date (today)
   const today = new Date().toISOString().split("T")[0];
-
-  // Get max date (30 days from now)
   const maxDate = new Date();
   maxDate.setDate(maxDate.getDate() + 30);
   const maxDateStr = maxDate.toISOString().split("T")[0];
@@ -196,7 +187,7 @@ export default function DoctorProfilePage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="max-w-4xl mx-auto space-y-4">
+        <div className="max-w-4xl mx-auto space-y-4 px-2 sm:px-4">
           <div className="h-48 bg-slate-100 rounded-2xl animate-pulse" />
           <div className="h-64 bg-slate-100 rounded-2xl animate-pulse" />
         </div>
@@ -204,29 +195,13 @@ export default function DoctorProfilePage() {
     );
   }
 
-  if (!doctor) {
-    return (
-      <DashboardLayout>
-        <div className="max-w-4xl mx-auto text-center py-20">
-          <p className="text-slate-500">Doctor not found.</p>
-          <button
-            onClick={() => router.back()}
-            className="mt-4 text-teal-600 font-medium hover:underline"
-          >
-            ← Go back
-          </button>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Back */}
+      <div className="max-w-4xl mx-auto space-y-5 px-1 sm:px-4">
+        {/* Navigation Action */}
         <button
           onClick={() => router.back()}
-          className="text-sm text-slate-500 hover:text-teal-600 transition-colors flex items-center gap-1"
+          className="text-xs sm:text-sm text-slate-500 hover:text-teal-600 transition-colors flex items-center gap-1.5 py-1"
         >
           <svg
             className="w-4 h-4"
@@ -240,19 +215,21 @@ export default function DoctorProfilePage() {
           Back to Doctors
         </button>
 
-        {/* Booking Success Banner */}
+        {/* Success Feedback Sheet */}
         {bookingSuccess && (
-          <div className="bg-teal-50 border border-teal-200 rounded-2xl p-5 flex items-center gap-4">
-            <span className="text-3xl">🎉</span>
-            <div>
-              <p className="font-bold text-teal-900">Appointment Booked!</p>
-              <p className="text-teal-700 text-sm mt-0.5">
+          <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 sm:p-5 flex items-start gap-3 sm:gap-4 shadow-sm">
+            <span className="text-2xl sm:text-3xl shrink-0">🎉</span>
+            <div className="min-w-0">
+              <p className="font-bold text-teal-900 text-sm sm:text-base">
+                Appointment Booked!
+              </p>
+              <p className="text-teal-700 text-xs sm:text-sm mt-0.5 leading-relaxed">
                 Your appointment with {doctor.name} is pending confirmation.
-                You'll be notified once confirmed.
+                You'll be notified here once confirmed.
               </p>
               <button
                 onClick={() => router.push("/appointments")}
-                className="mt-2 text-sm font-semibold text-teal-600 hover:underline"
+                className="mt-2 text-xs sm:text-sm font-bold text-teal-600 hover:underline inline-flex"
               >
                 View My Appointments →
               </button>
@@ -260,124 +237,115 @@ export default function DoctorProfilePage() {
           </div>
         )}
 
-        {/* Doctor Profile Card */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
-          <div className="flex items-start gap-5 mb-6">
-            <div className="w-24 h-24 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-700 font-bold text-4xl border border-teal-100 shrink-0">
+        {/* Main Base Card layout profile */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-5 mb-6">
+            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-700 font-bold text-2xl sm:text-4xl border border-teal-100 shrink-0 mx-auto sm:mx-0">
               {doctor.name?.charAt(0) || "D"}
             </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-bold text-slate-900">
+            <div className="flex-1 text-center sm:text-left min-w-0 w-full">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-center sm:justify-start gap-1.5 sm:gap-3">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">
                   {doctor.name}
                 </h1>
                 {doctor.is_verified && (
-                  <span className="text-xs bg-teal-50 text-teal-700 border border-teal-200 px-2.5 py-1 rounded-full font-semibold">
+                  <span className="self-center sm:self-auto text-[10px] bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full font-bold">
                     ✓ Verified
                   </span>
                 )}
               </div>
-              <p className="text-teal-600 font-semibold mt-1">
+              <p className="text-teal-600 text-sm font-semibold mt-1">
                 {doctor.specialization || "General Physician"}
               </p>
               {doctor.hospital && (
-                <p className="text-slate-500 text-sm mt-0.5">
+                <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
                   🏥 {doctor.hospital}
                 </p>
               )}
               {doctor.location && (
-                <p className="text-slate-400 text-sm mt-0.5">
+                <p className="text-slate-400 text-xs sm:text-sm mt-0.5">
                   📍 {doctor.location}
                 </p>
               )}
             </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          {/* Sizing Grid parameters metrics */}
+          <div className="grid grid-cols-2 min-[480px]:grid-cols-4 gap-2.5 mb-6">
             {[
               {
                 label: "Experience",
                 value: doctor.experience_years
                   ? `${doctor.experience_years} years`
                   : "N/A",
-                icon: "🩺",
               },
               {
                 label: "Rating",
                 value: `⭐ ${doctor.reliability_rating || "N/A"}`,
-                icon: "",
               },
               {
                 label: "Consulting Fee",
                 value: doctor.consulting_fee
                   ? `₹${doctor.consulting_fee}`
                   : "Free",
-                icon: "💰",
               },
-              {
-                label: "Languages",
-                value: doctor.languages || "N/A",
-                icon: "🗣",
-              },
+              { label: "Languages", value: doctor.languages || "N/A" },
             ].map((stat) => (
               <div
                 key={stat.label}
-                className="p-3 bg-slate-50 rounded-xl text-center"
+                className="p-2.5 bg-slate-50 rounded-xl text-center border border-slate-100"
               >
-                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                   {stat.label}
                 </p>
-                <p className="font-bold text-slate-900 text-sm mt-1">
+                <p className="font-bold text-slate-900 text-xs sm:text-sm mt-1 truncate">
                   {stat.value}
                 </p>
               </div>
             ))}
           </div>
 
-          {/* About */}
           {doctor.about && (
             <div className="mb-6">
-              <h3 className="font-semibold text-slate-900 mb-2">About</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
+              <h3 className="text-sm font-bold text-slate-900 mb-1.5">About</h3>
+              <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
                 {doctor.about}
               </p>
             </div>
           )}
 
-          {/* Availability */}
+          {/* Available track metrics rendering panels */}
           {availableDays.length > 0 && (
-            <div className="mb-6 p-4 bg-teal-50 rounded-xl border border-teal-100">
-              <p className="text-sm font-semibold text-teal-800 mb-2">
+            <div className="mb-6 p-3.5 sm:p-4 bg-teal-50/60 rounded-xl border border-teal-100">
+              <p className="text-xs sm:text-sm font-bold text-teal-800 mb-2">
                 📅 Available Days
               </p>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-1.5 flex-wrap">
                 {availableDays.map((day) => (
                   <span
                     key={day}
-                    className="text-xs bg-white text-teal-700 border border-teal-200 px-3 py-1 rounded-full font-medium"
+                    className="text-[10px] sm:text-xs bg-white text-teal-700 border border-teal-100 px-2.5 py-1 rounded-full font-medium"
                   >
                     {day}
                   </span>
                 ))}
               </div>
               {availability[0] && (
-                <p className="text-xs text-teal-600 mt-2">
+                <p className="text-[11px] text-teal-600 mt-2 font-medium">
                   🕐 {formatTime(availability[0].start_time)} —{" "}
-                  {formatTime(availability[0].end_time)}
-                  &nbsp;({availability[0].slot_duration_minutes} min slots)
+                  {formatTime(availability[0].end_time)} (
+                  {availability[0].slot_duration_minutes} min slots)
                 </p>
               )}
             </div>
           )}
 
-          {/* Book Button */}
           {!showBooking &&
             !bookingSuccess &&
             currentProfile?.role !== "doctor" && (
               <button
                 onClick={() => setShowBooking(true)}
-                className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm transition-colors"
+                className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-sm active:scale-[0.99]"
               >
                 📅 Book Appointment —{" "}
                 {doctor.consulting_fee ? `₹${doctor.consulting_fee}` : "Free"}
@@ -385,35 +353,34 @@ export default function DoctorProfilePage() {
             )}
         </div>
 
-        {/* Booking Form */}
+        {/* Dynamic Booking Core Interactive Form Sheet */}
         {showBooking && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900">
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 space-y-5 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
                 Book Appointment
               </h2>
               <button
                 onClick={() => setShowBooking(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold text-xl"
+                className="text-slate-400 hover:text-slate-600 font-medium p-1 text-lg"
               >
                 ✕
               </button>
             </div>
 
-            {/* Consultation Type */}
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Consultation Type
               </label>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 {["online", "in_person"].map((type) => (
                   <button
                     key={type}
                     onClick={() => setConsultationType(type)}
-                    className={`flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-colors ${
+                    className={`flex-1 py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-colors ${
                       consultationType === type
-                        ? "border-teal-500 bg-teal-50 text-teal-700"
-                        : "border-slate-200 text-slate-500 hover:border-teal-300"
+                        ? "border-teal-500 bg-teal-50 text-teal-700 font-bold"
+                        : "border-slate-200 text-slate-500 bg-white"
                     }`}
                   >
                     {type === "online" ? "💻 Online" : "🏥 In Person"}
@@ -422,9 +389,8 @@ export default function DoctorProfilePage() {
               </div>
             </div>
 
-            {/* Date Picker */}
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                 Select Date *
               </label>
               <input
@@ -433,23 +399,23 @@ export default function DoctorProfilePage() {
                 min={today}
                 max={maxDateStr}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
               {selectedDate && availableSlots.length === 0 && (
-                <p className="text-red-500 text-xs mt-1">
-                  ⚠️ Doctor is not available on this day. Available:{" "}
+                <p className="text-red-500 text-[11px] mt-1.5 leading-normal font-medium">
+                  ⚠️ Doctor is not available on this day. Available days:{" "}
                   {availableDays.join(", ")}
                 </p>
               )}
             </div>
 
-            {/* Time Slots */}
+            {/* Time Grid slots fluid adjustment */}
             {availableSlots.length > 0 && (
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
                   Select Time Slot *
                 </label>
-                <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
+                <div className="grid grid-cols-3 min-[430px]:grid-cols-4 sm:grid-cols-6 gap-1.5">
                   {availableSlots.map((slot) => {
                     const isBooked = bookedSlots.includes(slot);
                     return (
@@ -457,12 +423,12 @@ export default function DoctorProfilePage() {
                         key={slot}
                         disabled={isBooked}
                         onClick={() => setSelectedTime(slot)}
-                        className={`py-2 px-3 rounded-xl text-xs font-semibold transition-colors ${
+                        className={`py-2 px-1 text-center rounded-xl text-[11px] font-bold transition-all truncate ${
                           isBooked
                             ? "bg-slate-100 text-slate-300 cursor-not-allowed line-through"
                             : selectedTime === slot
-                              ? "bg-teal-600 text-white"
-                              : "bg-slate-50 text-slate-600 hover:bg-teal-50 hover:text-teal-700 border border-slate-200"
+                              ? "bg-teal-600 text-white shadow-sm"
+                              : "bg-slate-50 text-slate-600 border border-slate-200 hover:bg-teal-50"
                         }`}
                       >
                         {formatTime(slot)}
@@ -473,23 +439,21 @@ export default function DoctorProfilePage() {
               </div>
             )}
 
-            {/* Reason */}
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                 Reason for Visit *
               </label>
               <input
                 type="text"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="e.g. Routine checkup, Chest pain, Fever"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                placeholder="e.g., Routine checkup, Chest pain"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>
 
-            {/* Symptoms */}
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                 Symptoms (Optional)
               </label>
               <textarea
@@ -497,69 +461,54 @@ export default function DoctorProfilePage() {
                 onChange={(e) => setSymptoms(e.target.value)}
                 placeholder="Describe your symptoms in detail..."
                 rows={3}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
               />
             </div>
 
-            {/* Summary */}
             {selectedDate && selectedTime && (
-              <div className="p-4 bg-teal-50 border border-teal-100 rounded-xl">
-                <p className="text-sm font-bold text-teal-900 mb-2">
+              <div className="p-3.5 bg-teal-50/60 border border-teal-100 rounded-xl text-xs sm:text-sm text-teal-800 space-y-1">
+                <p className="font-bold text-teal-900 mb-1.5">
                   📋 Booking Summary
                 </p>
-                <div className="space-y-1 text-sm text-teal-700">
-                  <p>👨‍⚕️ Dr. {doctor.name}</p>
-                  <p>
-                    📅{" "}
-                    {new Date(selectedDate).toLocaleDateString("en-IN", {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
-                  <p>🕐 {formatTime(selectedTime)}</p>
-                  <p>
-                    💻{" "}
-                    {consultationType === "online"
-                      ? "Online Consultation"
-                      : "In-Person Visit"}
-                  </p>
-                  <p className="font-bold">
-                    💰 Fee:{" "}
-                    {doctor.consulting_fee
-                      ? `₹${doctor.consulting_fee}`
-                      : "Free"}
-                  </p>
-                </div>
+                <p>👨‍⚕️ Dr. {doctor.name}</p>
+                <p>
+                  📅{" "}
+                  {new Date(selectedDate).toLocaleDateString("en-IN", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
+                </p>
+                <p>
+                  Item: {formatTime(selectedTime)} (
+                  {consultationType === "online" ? "Online" : "In-Person"})
+                </p>
+                <p className="font-bold text-teal-900 mt-1">
+                  💰 Fee:{" "}
+                  {doctor.consulting_fee ? `₹${doctor.consulting_fee}` : "Free"}
+                </p>
               </div>
             )}
 
-            {/* Error Message */}
             {message && (
               <div
-                className={`px-4 py-3 rounded-xl text-sm font-medium ${
-                  message.type === "success"
-                    ? "bg-teal-50 text-teal-700 border border-teal-100"
-                    : "bg-red-50 text-red-700 border border-red-100"
-                }`}
+                className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold ${message.type === "success" ? "bg-teal-50 text-teal-700" : "bg-red-50 text-red-700"}`}
               >
                 {message.text}
               </div>
             )}
 
-            {/* Submit */}
-            <div className="flex gap-3">
+            <div className="flex gap-2.5 pt-2">
               <button
                 onClick={() => setShowBooking(false)}
-                className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-xs sm:text-sm hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleBooking}
                 disabled={saving || !selectedDate || !selectedTime || !reason}
-                className="flex-1 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white font-bold text-sm transition-colors"
+                className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white font-bold text-xs sm:text-sm transition-all"
               >
                 {saving ? "Booking..." : "Confirm Booking"}
               </button>
