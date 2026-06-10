@@ -11,6 +11,21 @@ export function cn(...inputs: ClassValue[]) {
 
 // --- ICONS ---
 const Icons = {
+  VerifiedCheck: ({ className }: { className?: string }) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M8.603 3.799A4.49 4.49 0 0112 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 013.498 1.307 4.491 4.491 0 011.307 3.497A4.49 4.49 0 0121.75 12a4.49 4.49 0 01-1.549 3.397 4.491 4.491 0 01-1.307 3.497 4.491 4.491 0 01-3.497 1.307A4.49 4.49 0 0112 21.75a4.49 4.49 0 01-3.397-1.549 4.49 4.49 0 01-3.498-1.306 4.491 4.491 0 01-1.307-3.498A4.49 4.49 0 012.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 011.307-3.497 4.49 4.49 0 013.497-1.307zm7.007 6.387a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z"
+        clipRule="evenodd"
+      />
+    </svg>
+  ),
   AlertTriangle: ({ className }: { className?: string }) => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -159,6 +174,7 @@ const Icons = {
     </svg>
   ),
 };
+
 const chatInboxItemVariants = cva(
   "w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset",
   {
@@ -172,7 +188,7 @@ const chatInboxItemVariants = cva(
         ghost: "hover:bg-slate-100 focus-visible:ring-slate-400",
       },
       isActive: {
-        true: "", // Handled dynamically below
+        true: "",
         false: "",
       },
       isDisabled: {
@@ -200,6 +216,7 @@ export interface ChatInboxItemProps
   isActive?: boolean;
   isLoading?: boolean;
   disabled?: boolean;
+  isVerified?: boolean; // <-- Added this
 }
 
 export const ChatInboxItem = React.forwardRef<
@@ -219,6 +236,7 @@ export const ChatInboxItem = React.forwardRef<
       isActive = false,
       isLoading = false,
       disabled = false,
+      isVerified = false, // <-- Added this
       ...props
     },
     ref,
@@ -288,14 +306,21 @@ export const ChatInboxItem = React.forwardRef<
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-0.5">
-            <h4
-              className={cn(
-                "text-sm font-semibold truncate",
-                isDark ? "text-slate-100" : "text-slate-900",
+            {/* Added a wrapper here to hold the name and the badge together */}
+            <div className="flex items-center gap-1 min-w-0">
+              <h4
+                className={cn(
+                  "text-sm font-semibold truncate",
+                  isDark ? "text-slate-100" : "text-slate-900",
+                )}
+              >
+                {name}
+              </h4>
+              {/* Badge rendered if isVerified is true */}
+              {isVerified && (
+                <Icons.VerifiedCheck className="w-4 h-4 text-blue-500 shrink-0" />
               )}
-            >
-              {name}
-            </h4>
+            </div>
             <span
               className={cn(
                 "text-[10px] shrink-0 ml-2",

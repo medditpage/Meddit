@@ -1,8 +1,10 @@
+"use client";
 // MessageBubble
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { createClient } from "@/utils/supabase/client";
 
 // --- UTILITIES ---
 export function cn(...inputs: ClassValue[]) {
@@ -190,10 +192,6 @@ const messageBubbleVariants = cva(
   },
 );
 
-// --- PROPS ---
-// `Omit<React.HTMLAttributes<HTMLDivElement>, "content">` removes the conflicting
-// HTML `content` attribute (typed as `string | undefined`) so our `content: React.ReactNode`
-// can safely override it without a type clash.
 export interface MessageBubbleProps
   extends
     Omit<React.HTMLAttributes<HTMLDivElement>, "content">,
@@ -204,6 +202,9 @@ export interface MessageBubbleProps
   isRead?: boolean;
   isLoading?: boolean;
   disabled?: boolean;
+  // NEW: Added props to handle files
+  fileUrl?: string;
+  fileType?: string;
 }
 
 // --- COMPONENT ---
@@ -221,6 +222,8 @@ export const MessageBubble = React.forwardRef<
       isRead = false,
       isLoading = false,
       disabled = false,
+      fileUrl,
+      fileType,
       ...props
     },
     ref,
@@ -229,6 +232,34 @@ export const MessageBubble = React.forwardRef<
     const defaultVariant = variant || (isOwn ? "primary" : "secondary");
     const isDark =
       defaultVariant === "primary" || defaultVariant === "inverted";
+
+    // NEW: State to hold the securely resolved URL
+    const [resolvedUrl, setResolvedUrl] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+      if (!fileUrl) return;
+
+      // If it's already a full HTTP link, just use it
+      if (fileUrl.startsWith("http")) {
+        setResolvedUrl(fileUrl);
+        return;
+      }
+
+      // Otherwise, ask Supabase for a secure 1-hour view link
+      const fetchSecureUrl = async () => {
+        const supabase = createClient();
+        const { data } = await supabase.storage
+          .from("chat-files")
+          .createSignedUrl(fileUrl, 3600); // 1 hour expiry
+
+        if (data) {
+          const cleanUrl = `/api/file-proxy?url=${encodeURIComponent(data.signedUrl)}`;
+        setResolvedUrl(cleanUrl);
+        }
+      };
+
+      fetchSecureUrl();
+    }, [fileUrl]);
 
     // --- Typing indicator skeleton ---
     if (isLoading) {
@@ -262,6 +293,13 @@ export const MessageBubble = React.forwardRef<
       );
     }
 
+    // Determine if we should hide the default text ("Sent a image") when an actual file is rendered
+    const hideDefaultText =
+      (content === "Sent a image" ||
+        content === "Sent a pdf" ||
+        content === "Sent a document") &&
+      fileUrl;
+
     return (
       <div
         className={cn("flex flex-col w-full mb-4", isDisabled && "opacity-60")}
@@ -278,7 +316,52 @@ export const MessageBubble = React.forwardRef<
           )}
           {...props}
         >
-          <div className="whitespace-pre-wrap leading-relaxed">{content}</div>
+          {/* NEW: Render the attached file if one exists */}
+          {fileUrl && (
+            <div className="mb-2">
+              {fileType === "image" ? (
+                resolvedUrl ? (
+                  <a
+                    href={resolvedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <img
+                      src={resolvedUrl}
+                      alt="Chat attachment"
+                      className="max-w-[200px] sm:max-w-[280px] rounded-lg object-cover bg-black/10 hover:opacity-90 transition-opacity cursor-zoom-in"
+                    />
+                  </a>
+                ) : (
+                  <div className="w-[200px] h-[150px] bg-black/10 animate-pulse rounded-lg flex items-center justify-center">
+                    <Icons.Spinner className="w-6 h-6 opacity-50" />
+                  </div>
+                )
+              ) : (
+                <a
+                  href={resolvedUrl || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-lg transition-colors text-sm font-medium",
+                    isDark
+                      ? "bg-white/10 hover:bg-white/20"
+                      : "bg-black/5 hover:bg-black/10",
+                  )}
+                >
+                  <Icons.FileText className="w-5 h-5 shrink-0" />
+                  <span className="truncate max-w-[150px]">View Document</span>
+                  <Icons.Download className="w-4 h-4 ml-auto opacity-50" />
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Render the text content (unless it's just the fallback text) */}
+          {!hideDefaultText && (
+            <div className="whitespace-pre-wrap leading-relaxed">{content}</div>
+          )}
 
           <div
             className={cn(

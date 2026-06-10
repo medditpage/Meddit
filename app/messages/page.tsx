@@ -63,8 +63,8 @@ export default function MessagingPage() {
       .select(
         `
         *,
-        p1:profiles!conversations_participant_1_fkey(id, name, avatar_initials, role, username),
-        p2:profiles!conversations_participant_2_fkey(id, name, avatar_initials, role, username)
+        p1:profiles!conversations_participant_1_fkey(id, name, avatar_initials, role, username , is_verified),
+        p2:profiles!conversations_participant_2_fkey(id, name, avatar_initials, role, username , is_verified)
       `,
       )
       .or(`participant_1.eq.${currentUserId},participant_2.eq.${currentUserId}`)
@@ -187,20 +187,48 @@ export default function MessagingPage() {
         .select("*")
         .eq("id", other.id)
         .single();
-      setOtherProfile(data);
+
+      if (data) {
+        if (data.cv_url && !data.cv_url.startsWith("http")) {
+          // THE FIX: Construct the full path using the user's ID
+          // If cv_url already has a slash, use it. Otherwise, prepend the folder ID!
+          const filePath = data.cv_url.includes("/")
+            ? data.cv_url
+            : `${other.id}/${data.cv_url}`;
+
+          const { data: urlData, error } = await supabase.storage
+            .from("documents")
+            .createSignedUrl(filePath, 60);
+
+          if (error) {
+            console.error("Supabase Storage Error:", error.message);
+            data.cv_url = "#";
+          } else if (urlData) {
+            data.cv_url = urlData.signedUrl; // Swap the filename with the secure link
+          }
+        }
+        setOtherProfile(data);
+      }
     };
     fetchOtherProfile();
   }, [activeConversation, currentUserId]);
-
   // ─── Auto scroll ──────────────────────────────────────────
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
   // ─── Send message ─────────────────────────────────────────
-  const handleSend = async (text: string) => {
-    if (!text.trim() || !activeConversation || !currentUserId || sending)
+  // ─── Send message (Updated for File Uploads) ────────────────
+  const handleSend = async (text: string, file?: File | null) => {
+    // Prevent sending if BOTH text and file are empty
+    if (
+      (!text.trim() && !file) ||
+      !activeConversation ||
+      !currentUserId ||
+      sending
+    )
       return;
+
     setSending(true);
 
     const supabase = createClient();
@@ -209,7 +237,42 @@ export default function MessagingPage() {
         ? activeConversation.participant_2
         : activeConversation.participant_1;
 
-    // Optimistic update
+    let finalFileUrl = null;
+    let finalFileType = "text";
+
+    // 1. Handle File Upload if a file exists
+    if (file) {
+      // Create a unique filename: conversationID/timestamp.ext
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${activeConversation.id}/${Date.now()}.${fileExt}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("chat-files")
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error("Error uploading file:", uploadError.message);
+        setSending(false);
+        alert("Failed to upload file. Please try again.");
+        return; // Stop the message from sending if upload fails
+      }
+
+      finalFileUrl = filePath; // Save the path so we can generate secure links later
+
+      // Determine the type for the UI
+      if (file.type.startsWith("image/")) {
+        finalFileType = "image";
+      } else if (file.type === "application/pdf") {
+        finalFileType = "pdf";
+      } else {
+        finalFileType = "document";
+      }
+    }
+
+    // Default text if they only send a file
+    const finalContent = text.trim() ? text : `Sent a ${finalFileType}`;
+
+    // Optimistic update for UI (so it feels instant)
     const tempId = `temp_${Date.now()}`;
     setMessages((prev) => [
       ...prev,
@@ -218,33 +281,43 @@ export default function MessagingPage() {
         conversation_id: activeConversation.id,
         sender_id: currentUserId,
         receiver_id: otherId,
-        content: text,
+        content: finalContent,
         is_read: false,
         created_at: new Date().toISOString(),
+        file_url: finalFileUrl,
+        file_type: finalFileType,
       },
     ]);
     setInputValue("");
 
+    // 2. Insert into the database
     const { error } = await supabase.from("messages").insert({
       conversation_id: activeConversation.id,
       sender_id: currentUserId,
       receiver_id: otherId,
-      content: text,
+      content: finalContent,
       is_read: false,
+      file_url: finalFileUrl,
+      file_type: finalFileType,
     });
 
     if (!error) {
       await supabase
         .from("conversations")
         .update({
-          last_message: text,
+          last_message:
+            finalFileType === "text"
+              ? finalContent
+              : `📎 ${finalFileType} attached`,
           last_message_at: new Date().toISOString(),
         })
         .eq("id", activeConversation.id);
     } else {
+      console.error("Database Error:", error);
       // Remove optimistic message on error
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
     }
+
     setSending(false);
   };
 
@@ -277,27 +350,52 @@ export default function MessagingPage() {
     : null;
 
   // Build PatientInfo for panel
-  const patientInfo = otherProfile
+  // Build Profile Info for panel (Handles both Patient and Doctor)
+  const profileDataForPanel = otherProfile
     ? {
-        name: otherProfile.name || "Unknown",
-        age: otherProfile.date_of_birth
-          ? Math.floor(
-              (Date.now() - new Date(otherProfile.date_of_birth).getTime()) /
-                (365.25 * 24 * 60 * 60 * 1000),
-            )
-          : undefined,
-        gender: otherProfile.gender,
-        bloodGroup: otherProfile.blood_group,
-        allergies: otherProfile.allergies
-          ? otherProfile.allergies.split(",").map((a: string) => a.trim())
-          : [],
-        conditions: otherProfile.medical_conditions
-          ? otherProfile.medical_conditions
-              .split(",")
-              .map((c: string) => c.trim())
-          : [],
-        avatarInitials: otherProfile.avatar_initials,
         role: otherProfile.role,
+        name: otherProfile.name || "Unknown",
+        avatarInitials: otherProfile.avatar_initials,
+        gender: otherProfile.gender,
+
+        // PRIVACY ENFORCEMENT:
+        // phone and aadhaar_url are strictly EXCLUDED from this object.
+
+        // --- PATIENT SPECIFIC DATA ---
+        ...(otherProfile.role === "patient" && {
+          age: otherProfile.date_of_birth
+            ? Math.floor(
+                (Date.now() - new Date(otherProfile.date_of_birth).getTime()) /
+                  (365.25 * 24 * 60 * 60 * 1000),
+              )
+            : undefined,
+          // Only pass sensitive medical data if see_doctor_mode is true
+          bloodGroup: otherProfile.see_doctor_mode
+            ? otherProfile.blood_group
+            : "Hidden",
+          allergies:
+            otherProfile.see_doctor_mode && otherProfile.allergies
+              ? otherProfile.allergies.split(",").map((a: string) => a.trim())
+              : [],
+          conditions:
+            otherProfile.see_doctor_mode && otherProfile.medical_conditions
+              ? otherProfile.medical_conditions
+                  .split(",")
+                  .map((c: string) => c.trim())
+              : [],
+          isMedicalDataHidden: !otherProfile.see_doctor_mode, // Flag for your UI to show a lock icon
+        }),
+
+        // --- DOCTOR SPECIFIC DATA ---
+        ...(otherProfile.role === "doctor" && {
+          specialization: otherProfile.specialization,
+          experience: otherProfile.experience_years
+            ? `${otherProfile.experience_years} Years`
+            : undefined,
+          hospital: otherProfile.hospital,
+          consultingFee: otherProfile.consulting_fee,
+          cvUrl: otherProfile.cv_url, // Resume is public/allowed
+        }),
       }
     : null;
 
@@ -357,6 +455,7 @@ export default function MessagingPage() {
                     time={formatConvTime(conv.last_message_at)}
                     unreadCount={getUnreadCount(conv.id)}
                     isActive={activeConversation?.id === conv.id}
+                    isVerified={other?.is_verified}
                     onClick={() => {
                       setActiveConversation(conv);
                       setIsPanelOpen(false);
@@ -410,18 +509,19 @@ export default function MessagingPage() {
                 </div>
 
                 {/* Info panel toggle — only show for doctor viewing patient */}
-                {isDoctor && otherParticipant?.role === "patient" && (
-                  <button
-                    onClick={() => setIsPanelOpen(!isPanelOpen)}
-                    className={`p-2 rounded-xl text-sm font-semibold transition-colors ${
-                      isPanelOpen
-                        ? "bg-teal-100 text-teal-700"
-                        : "bg-slate-100 text-slate-600 hover:bg-teal-50 hover:text-teal-700"
-                    }`}
-                  >
-                    🏥 Patient Info
-                  </button>
-                )}
+                {/* Info panel toggle — show for EVERYONE */}
+                <button
+                  onClick={() => setIsPanelOpen(!isPanelOpen)}
+                  className={`p-2 rounded-xl text-sm font-semibold transition-colors ${
+                    isPanelOpen
+                      ? "bg-teal-100 text-teal-700"
+                      : "bg-slate-100 text-slate-600 hover:bg-teal-50 hover:text-teal-700"
+                  }`}
+                >
+                  {otherParticipant?.role === "patient"
+                    ? "🏥 Patient Info"
+                    : "👨‍⚕️ Doctor Profile"}
+                </button>
               </div>
 
               {/* Messages */}
@@ -446,6 +546,8 @@ export default function MessagingPage() {
                         timestamp={formatTime(msg.created_at)}
                         isOwn={msg.sender_id === currentUserId}
                         isRead={msg.is_read}
+                        fileUrl={msg.file_url} 
+                        fileType={msg.file_type}
                       />
                     </React.Fragment>
                   ))
@@ -488,15 +590,13 @@ export default function MessagingPage() {
         </div>
 
         {/* ── Right: Patient Info Panel ─────────────────────── */}
-        {isDoctor && (
-          <div className="relative">
-            <PatientInfoPanel
-              patient={patientInfo}
-              isOpen={isPanelOpen}
-              onToggle={() => setIsPanelOpen(!isPanelOpen)}
-            />
-          </div>
-        )}
+        <div className="relative">
+          <PatientInfoPanel
+            patient={profileDataForPanel}
+            isOpen={isPanelOpen}
+            onToggle={() => setIsPanelOpen(!isPanelOpen)}
+          />
+        </div>
       </div>
     </DashboardLayout>
   );

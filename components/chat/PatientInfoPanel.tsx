@@ -156,6 +156,38 @@ const Icons = {
       <path d="m6 6 12 12" />
     </svg>
   ),
+  Lock: ({ className }: { className?: string }) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+    </svg>
+  ),
+  Briefcase: ({ className }: { className?: string }) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+    </svg>
+  ),
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -174,16 +206,28 @@ export interface PatientAppointment {
 
 export interface PatientInfo {
   name: string;
-  age?: number;
+  role?: string;
+  avatarInitials?: string;
   gender?: string;
+
+  // Patient specific
+  age?: number;
   bloodGroup?: string;
   allergies?: string[];
   conditions?: string[];
+  isMedicalDataHidden?: boolean;
+
+  // Doctor specific
+  specialization?: string;
+  experience?: string;
+  hospital?: string;
+  consultingFee?: string;
+  cvUrl?: string;
+
+  // Legacy (Keep for existing mock data if any)
   lastAppointment?: string;
   recentReports?: PatientReport[];
   upcomingAppointments?: PatientAppointment[];
-  avatarInitials?: string;
-  role?: string;
 }
 
 export interface PatientInfoPanelProps {
@@ -221,13 +265,14 @@ const InfoRow: React.FC<{ label: string; value: React.ReactNode }> = ({
 
 const TagChip: React.FC<{
   label: string;
-  color: "red" | "amber" | "teal" | "slate";
+  color: "red" | "amber" | "teal" | "slate" | "blue";
 }> = ({ label, color }) => {
   const colors = {
     red: "bg-red-50 text-red-700 border-red-200",
     amber: "bg-amber-50 text-amber-700 border-amber-200",
     teal: "bg-teal-50 text-teal-700 border-teal-200",
     slate: "bg-slate-100 text-slate-600 border-slate-200",
+    blue: "bg-blue-50 text-blue-700 border-blue-200",
   };
   return (
     <span
@@ -241,31 +286,21 @@ const TagChip: React.FC<{
   );
 };
 
+// ... Keeping your existing REPORT and APPOINTMENT constants here ...
 const REPORT_TYPE_LABELS: Record<PatientReport["type"], string> = {
   lab: "Lab",
   prescription: "Rx",
   imaging: "Img",
   other: "Doc",
 };
-
 const REPORT_TYPE_COLORS: Record<
   PatientReport["type"],
   "teal" | "amber" | "slate" | "red"
-> = {
-  lab: "teal",
-  prescription: "amber",
-  imaging: "slate",
-  other: "slate",
-};
-
+> = { lab: "teal", prescription: "amber", imaging: "slate", other: "slate" };
 const APPOINTMENT_STATUS_COLORS: Record<
   PatientAppointment["status"],
   "teal" | "amber" | "slate" | "red"
-> = {
-  upcoming: "teal",
-  completed: "slate",
-  cancelled: "red",
-};
+> = { upcoming: "teal", completed: "slate", cancelled: "red" };
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 const PanelSkeleton: React.FC = () => (
@@ -300,7 +335,7 @@ export const PatientInfoPanel: React.FC<PatientInfoPanelProps> = ({
       <button
         type="button"
         onClick={onToggle}
-        aria-label={isOpen ? "Close patient info" : "Open patient info"}
+        aria-label={isOpen ? "Close info panel" : "Open info panel"}
         aria-expanded={isOpen}
         className={cn(
           "absolute right-0 top-1/2 -translate-y-1/2 z-10",
@@ -323,7 +358,7 @@ export const PatientInfoPanel: React.FC<PatientInfoPanelProps> = ({
 
       {/* ── Slide-in panel ── */}
       <aside
-        aria-label="Patient information"
+        aria-label="Profile information"
         className={cn(
           "hidden lg:flex flex-col shrink-0 border-l border-slate-200 bg-white",
           "overflow-hidden transition-all duration-300 ease-in-out",
@@ -331,13 +366,14 @@ export const PatientInfoPanel: React.FC<PatientInfoPanelProps> = ({
           className,
         )}
       >
-        {/* Only render content when open to avoid tab-order issues */}
         {isOpen && (
           <div className="flex flex-col h-full w-[280px] overflow-y-auto">
-            {/* Header */}
+            {/* Header dynamically updates based on role */}
             <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50 shrink-0">
               <h3 className="text-sm font-bold text-slate-700">
-                Patient Details
+                {patient?.role === "doctor"
+                  ? "Doctor Profile"
+                  : "Patient Details"}
               </h3>
               <button
                 type="button"
@@ -355,7 +391,14 @@ export const PatientInfoPanel: React.FC<PatientInfoPanelProps> = ({
               <div className="flex-1 overflow-y-auto p-4 space-y-5">
                 {/* ── Avatar + Name ── */}
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-lg shrink-0">
+                  <div
+                    className={cn(
+                      "w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shrink-0",
+                      patient.role === "doctor"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-teal-100 text-teal-700",
+                    )}
+                  >
                     {patient.avatarInitials || patient.name.charAt(0)}
                   </div>
                   <div className="min-w-0">
@@ -370,7 +413,7 @@ export const PatientInfoPanel: React.FC<PatientInfoPanelProps> = ({
                   </div>
                 </div>
 
-                {/* ── Basic Info ── */}
+                {/* ── Basic Info (Everyone) ── */}
                 <section aria-label="Basic information">
                   <SectionHeader
                     icon={<Icons.User className="w-4 h-4" />}
@@ -383,153 +426,147 @@ export const PatientInfoPanel: React.FC<PatientInfoPanelProps> = ({
                     {patient.gender && (
                       <InfoRow label="Gender" value={patient.gender} />
                     )}
-                    {patient.bloodGroup && (
-                      <InfoRow
-                        label="Blood Group"
-                        value={
-                          <span className="inline-flex items-center gap-1">
-                            <Icons.Droplet className="w-3 h-3 text-red-500" />
-                            <span className="font-bold text-red-600">
-                              {patient.bloodGroup}
+                    {patient.role === "patient" &&
+                      patient.bloodGroup &&
+                      patient.bloodGroup !== "Hidden" && (
+                        <InfoRow
+                          label="Blood Group"
+                          value={
+                            <span className="inline-flex items-center gap-1">
+                              <Icons.Droplet className="w-3 h-3 text-red-500" />
+                              <span className="font-bold text-red-600">
+                                {patient.bloodGroup}
+                              </span>
                             </span>
-                          </span>
-                        }
-                      />
-                    )}
+                          }
+                        />
+                      )}
                   </div>
                 </section>
 
-                {/* ── Allergies ── */}
-                {patient.allergies && patient.allergies.length > 0 && (
-                  <section aria-label="Allergies">
+                {/* ── DOCTOR SPECIFIC INFO ── */}
+                {patient.role === "doctor" && (
+                  <section aria-label="Professional information">
                     <SectionHeader
-                      icon={<Icons.AlertTriangle className="w-4 h-4" />}
-                      label="Allergies"
-                      accent="text-red-500"
+                      icon={<Icons.Briefcase className="w-4 h-4" />}
+                      label="Professional Info"
+                      accent="text-blue-500"
                     />
-                    <div className="flex flex-wrap gap-1.5">
-                      {patient.allergies.map((a) => (
-                        <TagChip key={a} label={a} color="red" />
-                      ))}
+                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-1">
+                      {patient.specialization && (
+                        <InfoRow
+                          label="Specialty"
+                          value={patient.specialization}
+                        />
+                      )}
+                      {patient.experience && (
+                        <InfoRow
+                          label="Experience"
+                          value={patient.experience}
+                        />
+                      )}
+                      {patient.hospital && (
+                        <InfoRow
+                          label="Hospital/Clinic"
+                          value={patient.hospital}
+                        />
+                      )}
+                      {patient.consultingFee && (
+                        <InfoRow
+                          label="Consulting Fee"
+                          value={
+                            patient.consultingFee.includes("₹")
+                              ? patient.consultingFee
+                              : `₹${patient.consultingFee}`
+                          }
+                        />
+                      )}
                     </div>
-                  </section>
-                )}
 
-                {/* ── Conditions ── */}
-                {patient.conditions && patient.conditions.length > 0 && (
-                  <section aria-label="Medical conditions">
-                    <SectionHeader
-                      icon={<Icons.Activity className="w-4 h-4" />}
-                      label="Conditions"
-                      accent="text-amber-500"
-                    />
-                    <div className="flex flex-wrap gap-1.5">
-                      {patient.conditions.map((c) => (
-                        <TagChip key={c} label={c} color="amber" />
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                {/* ── Last Appointment ── */}
-                {patient.lastAppointment && (
-                  <section aria-label="Last appointment">
-                    <SectionHeader
-                      icon={<Icons.Calendar className="w-4 h-4" />}
-                      label="Last Appointment"
-                    />
-                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2">
-                      <p className="text-xs text-slate-600">
-                        {patient.lastAppointment}
-                      </p>
-                    </div>
-                  </section>
-                )}
-
-                {/* ── Upcoming Appointments ── */}
-                {patient.upcomingAppointments &&
-                  patient.upcomingAppointments.length > 0 && (
-                    <section aria-label="Upcoming appointments">
-                      <SectionHeader
-                        icon={<Icons.Calendar className="w-4 h-4" />}
-                        label="Upcoming"
-                      />
-                      <div className="space-y-2">
-                        {patient.upcomingAppointments.map((appt, i) => (
-                          <div
-                            key={i}
-                            className="rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="text-xs font-semibold text-slate-700 truncate">
-                                  {appt.type}
-                                </p>
-                                <p className="text-[11px] text-slate-400">
-                                  {appt.doctor}
-                                </p>
-                              </div>
-                              <TagChip
-                                label={appt.status}
-                                color={APPOINTMENT_STATUS_COLORS[appt.status]}
-                              />
-                            </div>
-                            <p className="text-[11px] text-slate-400 mt-1">
-                              {appt.date}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-
-                {/* ── Recent Reports ── */}
-                {patient.recentReports && patient.recentReports.length > 0 && (
-                  <section aria-label="Recent reports">
-                    <SectionHeader
-                      icon={<Icons.FileText className="w-4 h-4" />}
-                      label="Recent Reports"
-                    />
-                    <div className="space-y-1.5">
-                      {patient.recentReports.map((report, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2 hover:bg-teal-50/50 transition-colors group"
+                    {patient.cvUrl && (
+                      <div className="mt-3">
+                        <a
+                          href={patient.cvUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center justify-center gap-2 w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-200"
                         >
-                          <Icons.FileText className="w-4 h-4 text-slate-400 group-hover:text-teal-600 shrink-0 transition-colors" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-slate-700 truncate">
-                              {report.name}
-                            </p>
-                            <p className="text-[11px] text-slate-400">
-                              {report.date}
-                            </p>
-                          </div>
-                          <TagChip
-                            label={REPORT_TYPE_LABELS[report.type]}
-                            color={REPORT_TYPE_COLORS[report.type]}
-                          />
-                        </div>
-                      ))}
-                    </div>
+                          <Icons.FileText className="w-4 h-4" /> View Resume
+                        </a>
+                      </div>
+                    )}
                   </section>
                 )}
 
-                {/* ── Heart health ── */}
-                <section
-                  aria-label="Health status"
-                  className="rounded-xl bg-gradient-to-br from-teal-50 to-emerald-50 border border-teal-100 p-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <Icons.Heart className="w-4 h-4 text-teal-600 shrink-0" />
-                    <p className="text-[11px] font-semibold text-teal-700">
-                      All vitals on record
-                    </p>
-                  </div>
-                  <p className="text-[11px] text-teal-600/80 mt-1 pl-6">
-                    Review full history in the patient's profile.
-                  </p>
-                </section>
+                {/* ── PATIENT SPECIFIC INFO ── */}
+                {patient.role === "patient" && (
+                  <>
+                    {/* Check if privacy is active */}
+                    {patient.isMedicalDataHidden ? (
+                      <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 text-center mt-4">
+                        <Icons.Lock className="w-6 h-6 text-slate-400 mx-auto mb-2" />
+                        <p className="text-xs font-bold text-slate-700">
+                          Medical Data Locked
+                        </p>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          The patient has restricted access to their full
+                          medical profile.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Allergies */}
+                        {patient.allergies && patient.allergies.length > 0 && (
+                          <section aria-label="Allergies">
+                            <SectionHeader
+                              icon={<Icons.AlertTriangle className="w-4 h-4" />}
+                              label="Allergies"
+                              accent="text-red-500"
+                            />
+                            <div className="flex flex-wrap gap-1.5">
+                              {patient.allergies.map((a) => (
+                                <TagChip key={a} label={a} color="red" />
+                              ))}
+                            </div>
+                          </section>
+                        )}
+
+                        {/* Conditions */}
+                        {patient.conditions &&
+                          patient.conditions.length > 0 && (
+                            <section aria-label="Medical conditions">
+                              <SectionHeader
+                                icon={<Icons.Activity className="w-4 h-4" />}
+                                label="Conditions"
+                                accent="text-amber-500"
+                              />
+                              <div className="flex flex-wrap gap-1.5">
+                                {patient.conditions.map((c) => (
+                                  <TagChip key={c} label={c} color="amber" />
+                                ))}
+                              </div>
+                            </section>
+                          )}
+
+                        {/* Heart health note */}
+                        <section
+                          aria-label="Health status"
+                          className="rounded-xl bg-gradient-to-br from-teal-50 to-emerald-50 border border-teal-100 p-3"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icons.Heart className="w-4 h-4 text-teal-600 shrink-0" />
+                            <p className="text-[11px] font-semibold text-teal-700">
+                              Full access granted
+                            </p>
+                          </div>
+                          <p className="text-[11px] text-teal-600/80 mt-1 pl-6">
+                            Patient has enabled Doctor Mode.
+                          </p>
+                        </section>
+                      </>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
