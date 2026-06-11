@@ -1,4 +1,3 @@
-// middleware.ts
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -26,18 +25,31 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  // This talks securely to your database to verify the user
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const isLoginPage = request.nextUrl.pathname === "/login";
+  const pathname = request.nextUrl.pathname;
+  const isLoginPage = pathname === "/login";
+  const isAdminRoute = pathname.startsWith("/admin");
 
-  // Security routing
   if (!user && !isLoginPage) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
   if (user && isLoginPage) {
     return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  // Admin route protection — fetch role from DB
+  if (user && isAdminRoute) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.role !== "admin") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   return supabaseResponse;

@@ -2,6 +2,22 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+import { useStore } from "@/lib/store";
+import { useRouter } from "next/navigation";
+
+function AdminSwitchButton() {
+  const user = useStore((state) => state.user);
+  const router = useRouter();
+  if (user?.role !== "admin") return null;
+  return (
+    <button
+      onClick={() => router.push("/admin")}
+      className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full transition-colors"
+    >
+      🔐 Admin Panel
+    </button>
+  );
+}
 export interface TopNavbarProps {
   variant?: "primary" | "secondary";
   userName?: string;
@@ -97,8 +113,12 @@ export const TopNavbar = ({
               {userName === "Guest" ? "Please sign in" : "Active Session"}
             </span>
           </div>
-          <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-800 font-bold border border-teal-200 shrink-0">
-            {initials}
+          <div className="flex items-center gap-2">
+            {/* Admin switch button — only renders if user is admin */}
+            <AdminSwitchButton />
+            <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-800 font-bold border border-teal-200 shrink-0">
+              {initials}
+            </div>
           </div>
         </div>
       </div>
