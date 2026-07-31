@@ -1,5 +1,4 @@
 import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -179,7 +178,7 @@ export const AttachmentBubble = React.forwardRef<
       variant,
       fileName,
       fileSize,
-      fileType = "pdf",
+      fileType: _fileType = "pdf",
       onDownload,
       timestamp,
       isOwn = false,

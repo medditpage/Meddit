@@ -4,6 +4,23 @@ import { useRouter } from "next/navigation";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { createClient } from "@/utils/supabase/client";
 
+interface AdminRecentDoctor {
+  id: string;
+  name?: string;
+  specialization?: string;
+  verification_status?: string;
+  created_at?: string;
+}
+
+interface AdminRecentAppointment {
+  id: string;
+  appointment_date?: string;
+  appointment_time?: string;
+  status?: string;
+  patient?: { name?: string };
+  doctor?: { name?: string };
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = React.useState({
@@ -16,8 +33,8 @@ export default function AdminDashboard() {
     suspendedUsers: 0,
     todayAppointments: 0,
   });
-  const [recentDoctors, setRecentDoctors] = React.useState<any[]>([]);
-  const [recentAppointments, setRecentAppointments] = React.useState<any[]>([]);
+  const [recentDoctors, setRecentDoctors] = React.useState<AdminRecentDoctor[]>([]);
+  const [recentAppointments, setRecentAppointments] = React.useState<AdminRecentAppointment[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -298,7 +315,7 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                     <span
-                      className={`text-xs font-bold px-2.5 py-1 rounded-full ${appointmentColors[apt.status] || "bg-slate-100 text-slate-600"}`}
+                      className={`text-xs font-bold px-2.5 py-1 rounded-full ${appointmentColors[apt.status || "pending"] || "bg-slate-100 text-slate-600"}`}
                     >
                       {apt.status}
                     </span>

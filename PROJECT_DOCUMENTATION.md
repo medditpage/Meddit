@@ -1,4 +1,4 @@
-﻿# Medit — Current Project Documentation
+# Medit — Current Project Documentation
 
 ## 1. Project Purpose
 
@@ -6,12 +6,12 @@ Medit is a healthcare-oriented Next.js application that combines:
 
 - doctor and patient authentication
 - doctor discovery and profile browsing
-- appointment booking and management
-- community/forum-style medical discussions
-- messaging and consultation workflows
+- appointment booking and management with AI-assisted symptom triage
+- community/forum-style medical discussions with pre-publish AI moderation
+- messaging and consultation workflows with doctor-assisted AI reply drafting
 - dashboard-style practice oversight
 
-The current repository already contains a working app shell, protected routing, Supabase authentication, and multiple healthcare-facing screens connected to real Supabase tables and demo data paths.
+The current repository already contains a working app shell, protected routing, Supabase authentication, multi-tenant doctor/patient views, and an integrated Groq AI inference layer.
 
 ---
 
@@ -21,14 +21,14 @@ The app is structured as a healthcare platform prototype with these main areas:
 
 - root redirect to the main dashboard
 - login / sign-up / OTP verification flow
-- doctor directory and doctor detail views
-- appointment booking and management pages
+- doctor directory with symptom-to-specialization search and doctor detail views
+- appointment booking and management pages with structured pre-visit intake summaries
 - patient management and medical-history style screens
-- community feed and post detail pages
-- messaging interface with real-time-style table interactions
+- community feed and post detail pages with proactive AI moderation scanning
+- messaging interface with doctor-side AI reply drafting and end-to-end security options
 - settings page for profile, availability, and storage workflows
 
-The main entry experience for signed-in users is /dashboard.
+The main entry experience for signed-in users is `/dashboard`.
 
 ---
 
@@ -47,14 +47,15 @@ The main entry experience for signed-in users is /dashboard.
 9. Community forum page and post detail page
 10. Messaging page with conversation/message table access and key handling
 11. Settings page with profile, availability, file upload, and sign-out logic
-12. API routes under app/api/ for community, doctors, file proxy, and video-related utilities
+12. Groq AI Inference Client (`lib/ai/client.ts`) supporting free models (`llama-3.3-70b-versatile`)
+13. API routes under `app/api/` for symptom triage, content moderation, doctor reply drafting, community, doctors, file proxy, and video utilities
 
 ### Partially implemented or demo-dependent
 
 1. Some pages still rely on mock or demo data for API responses
-2. app/api/community/route.ts uses mock database data from lib/mockDb.ts
-3. Several UI flows depend on Supabase schema tables that must exist in the real project database
-4. The app is a strong prototype, but not yet fully production-hardened
+2. `app/api/community/route.ts` uses mock database data from `lib/mockDb.ts`
+3. AI inference routes fallback to deterministic engines if `GROQ_API_KEY` is not present
+4. Full production deployment requires database migration scripts for `pre_visit_summaries` and `moderation_flags`
 
 ---
 
@@ -81,6 +82,10 @@ The main entry experience for signed-in users is /dashboard.
 - Supabase Realtime-style subscriptions used in messaging and community views
 - SWR available in dependencies for future fetch patterns
 
+### AI / Inference Layer
+
+- Groq API (`llama-3.3-70b-versatile` / `llama-3.1-8b-instant`) via `GROQ_API_KEY` for symptom triage, pre-publish moderation, and doctor reply drafting.
+
 ### Supporting libraries
 
 - lucide-react
@@ -94,7 +99,7 @@ The main entry experience for signed-in users is /dashboard.
 
 ### A. Authentication and session flow
 
-The main login experience is in app/login/page.tsx.
+The main login experience is in `app/login/page.tsx`.
 
 It supports:
 
@@ -103,11 +108,11 @@ It supports:
 - OTP verification for registration
 - role selection between doctor and patient
 
-The global auth context is handled by components/providers/AuthProvider.tsx, which loads the current Supabase session and stores the user profile in Zustand.
+Auth/session logic remains 100% deterministic with no AI dependencies.
 
 ### B. Dashboard flow
 
-The main dashboard page is app/dashboard/page.tsx.
+The main dashboard page is `app/dashboard/page.tsx`.
 
 It displays:
 
@@ -119,56 +124,53 @@ It displays:
 - recent community posts
 - quick action cards
 
-### C. Doctor discovery and booking flow
+*Optional Future AI*: Weekly narrative summary of stats (e.g. "12 patients this week, 4 with recurring complaints about respiratory issues"). Low priority / nice-to-have.
+
+### C. Doctor discovery and booking flow — Primary AI Location #1
 
 The doctor pages are implemented in:
 
-- app/doctors/page.tsx
-- app/doctors/[id]/page.tsx
+- `app/doctors/page.tsx`
+- `app/doctors/[id]/page.tsx`
 
 These screens provide:
 
-- search by name, specialization, or hospital
-- specialization filtering
-- doctor profile details
-- appointment booking with date/time slot selection
-- doctor availability lookup
+- **Symptom-to-specialization matching**: patient types free-text symptoms, AI maps to the right specialization and ranks doctor results, instead of requiring the patient to already know what kind of doctor they need.
+- **Pre-appointment triage**: before the booking is confirmed, AI turns a free-text patient description into a structured pre-visit summary (`likely_symptoms`, `duration`, `relevant_history`, `urgency_level`) attached to the appointment, so the doctor isn't starting from zero.
 
-### D. Community / forum flow
+### D. Community / forum flow — Primary AI Location #2
 
 The community pages are implemented in:
 
-- app/community/page.tsx
-- app/community/[id]/page.tsx
+- `app/community/page.tsx`
+- `app/community/[id]/page.tsx`
 
 They support:
 
-- community feed UI
-- post creation and reporting
-- comment and discussion interactions
-- post filtering and medical relevance-oriented presentation
+- **Pre-publish moderation classifier**: every post/comment gets scanned before going live for:
+  - (a) medical misinformation
+  - (b) content that should defer to a real doctor rather than peer answers
+  - (c) emergency-signal language (self-harm, chest pain, stroke symptoms) that triggers a warning banner instead of waiting for replies.
+- Sits alongside the existing `post_reports` table as a proactive layer, not a replacement for reactive reporting.
 
-### E. Messaging flow
+### E. Messaging flow — Primary AI Location #3
 
-The messaging system lives in app/messages/page.tsx.
+The messaging system lives in `app/messages/page.tsx`.
 
-It uses Supabase-backed tables for:
+It supports:
 
-- conversations
-- messages
-- user public key storage
-
-This area depends on the correct schema being present in Supabase.
+- **Doctor-side reply drafts**: AI drafts a response based on conversation history; doctor edits/approves before sending. No auto-send — human always confirms.
+- **No AI on patient side of messaging** (avoids AI giving unverified medical advice directly to patients in 1:1 chat).
 
 ### F. Patient / appointment / settings flow
 
 Additional healthcare workflows are present in:
 
-- app/patients/page.tsx
-- app/appointments/page.tsx
-- app/settings/page.tsx
+- `app/patients/page.tsx`
+- `app/appointments/page.tsx`
+- `app/settings/page.tsx`
 
-These pages support patient management, appointment handling, and profile / availability configuration.
+No AI in settings/profile/availability logic (remains deterministic/config-driven).
 
 ---
 
@@ -176,22 +178,23 @@ These pages support patient management, appointment handling, and profile / avai
 
 ### Root files
 
-- package.json — scripts and dependencies
-- next.config.ts — app configuration
-- middleware.ts — protected route middleware
-- tailwind.config.ts — Tailwind setup
-- tsconfig.json — TypeScript configuration
-- README.md — default starter README, not yet project-specific
-- AGENTS.md / CLAUDE.md — repository guidance files
+- `package.json` — scripts and dependencies
+- `next.config.ts` — app configuration
+- `middleware.ts` — protected route middleware
+- `tailwind.config.ts` — Tailwind setup
+- `tsconfig.json` — TypeScript configuration
+- `README.md` — project README
+- `AGENTS.md` / `CLAUDE.md` — repository guidance files
+- `PROJECT_DOCUMENTATION.md` — master project architecture reference
 
 ### Main application folders
 
-- app/ — route-level pages and API endpoints
-- components/ — reusable UI, layout, medical, chat, and provider components
-- hooks/ — auth and UI hooks
-- lib/ — app state, helper logic, and mock data
-- utils/supabase/ — Supabase browser and server clients
-- types/ — Supabase and project type definitions
+- `app/` — route-level pages and API endpoints (including `triage`, `moderate`, `draft`)
+- `components/` — reusable UI, layout, medical, chat, and provider components
+- `hooks/` — auth and UI hooks
+- `lib/` — app state, helper logic, mock data, and `lib/ai/` client wrapper
+- `utils/supabase/` — Supabase browser and server clients
+- `types/` — Supabase and project type definitions (including `types/ai.ts`)
 
 ---
 
@@ -205,25 +208,21 @@ Wraps the app in AuthProvider and sets the global shell.
 
 Protects routes by checking for a valid Supabase session.
 
-### components/providers/AuthProvider.tsx
+### lib/ai/client.ts — NEW
 
-Loads the user session and populates the Zustand store.
+Centralized Groq LLM API calls (`llama-3.3-70b-versatile`), prompt templates, structured JSON parsing, error handling, and deterministic fallback engines.
 
-### lib/store.ts
+### app/api/appointments/triage/route.ts — NEW
 
-Stores global app state such as the active user, notifications, and unread message count.
+Handles pre-visit AI summary generation and symptom-to-specialization mapping.
 
-### lib/mockDb.ts
+### app/api/community/moderate/route.ts — NEW
 
-Contains static mock data used by demo API routes and early UI development.
+Handles pre-publish AI content classification, misinformation scanning, and emergency warning detection.
 
-### utils/supabase/client.ts
+### app/api/messages/draft/route.ts — NEW
 
-Browser-side Supabase client helper.
-
-### utils/supabase/server.ts
-
-Server-side Supabase client helper for route logic and SSR access.
+Handles AI reply draft generation for doctor-side messaging review.
 
 ### app/dashboard/page.tsx
 
@@ -231,7 +230,7 @@ Main dashboard UI and summary experience.
 
 ### app/doctors/page.tsx
 
-Doctor search, filtering, and listing experience.
+Doctor search, symptom matching filter, and listing experience.
 
 ### app/doctors/[id]/page.tsx
 
@@ -249,20 +248,18 @@ Messaging page with conversation and message data handling.
 
 ## 8. Current Data and Integration Notes
 
-The project currently uses a mix of:
+Additions to support AI features:
 
-- live Supabase queries for dashboards, profiles, appointments, and messaging
-- demo/mock data for some API responses and early UI support
+- `pre_visit_summaries` (linked to appointments) — stores structured AI-generated intake data (`likely_symptoms`, `duration`, `relevant_history`, `urgency_level`).
+- `moderation_flags` (linked to community posts/comments) — logs AI classifier decisions before/alongside `post_reports`.
 
-This means the repository is already a real application skeleton, but full production behavior depends on the correct Supabase database schema and environment variables being configured.
-
-Important tables expected by the current UI include:
+Standard core tables (remain deterministic without AI changes):
 
 - profiles
 - patients
 - doctors
-- appointments
 - doctor_availability
+- appointments
 - community_posts
 - comments
 - post_reports
@@ -270,19 +267,18 @@ Important tables expected by the current UI include:
 - messages
 - user_public_keys
 
-If these tables are not present or correctly configured in the Supabase project, some pages may fail or show incomplete data.
-
 ---
 
 ## 9. Architectural Strengths
 
-The current version already has several strong foundations:
+The current version has several strong foundations:
 
-- modern App Router structure
+- modern Next.js 16 App Router structure
 - real Supabase authentication integration
 - reusable layout and component system
 - clear separation between route pages, UI components, and utilities
 - healthcare-specific flows for doctors, patients, appointments, and community
+- **AI-assisted triage, proactive moderation, and doctor-side reply drafting** powered by Groq high-speed LLM inference
 
 ---
 
@@ -290,10 +286,10 @@ The current version already has several strong foundations:
 
 The main caveats are:
 
-1. some features still use mock data instead of production data
-2. the full database schema must be wired correctly for live usage
-3. production validation, error handling, and data integrity checks still need tightening
-4. the default README is not yet customized for this healthcare product
+1. **Human-in-the-loop requirement**: AI outputs (triage summaries, moderation flags, reply drafts) are advisory only and must never auto-send or auto-publish without human review — especially in a healthcare context where AI errors could mean missed emergency signals or bad medical suggestions.
+2. some features still use mock data instead of production data
+3. the full database schema must be wired correctly for live usage
+4. production validation, error handling, and data integrity checks still need tightening
 
 ---
 
@@ -312,6 +308,14 @@ Then open:
 http://localhost:3000
 ```
 
+### AI Configuration (Groq API)
+
+Add your Groq API Key to `.env.local`:
+
+```env
+GROQ_API_KEY=your_groq_api_key_here
+```
+
 Production build:
 
 ```bash
@@ -322,7 +326,7 @@ npm run build
 
 ## 12. Short Summary for Future AI Agents
 
-Medit is a Next.js 16 + TypeScript healthcare application with Supabase authentication, doctor and patient workflows, appointment booking, community/forum pages, messaging, and dashboard analytics. The UI and route structure are already implemented, and the project currently uses a combination of real Supabase-backed pages and demo/mock data for some early-stage features.
+Medit is a Next.js 16 + TypeScript healthcare application with Supabase authentication, doctor and patient workflows, appointment booking with AI-assisted symptom triage, community/forum pages with AI pre-publish moderation, messaging with AI-drafted doctor replies, and dashboard analytics.
 
 ---
 
@@ -333,4 +337,7 @@ Medit is a Next.js 16 + TypeScript healthcare application with Supabase authenti
 3. wire messaging and notification tables to production data
 4. harden role-based permissions and profile management
 5. add automated tests and deployment checks
-6. replace the default README with a product-specific developer guide
+6. Build pre-visit AI triage (symptom-to-specialization matching + structured intake summary)
+7. Build AI pre-publish moderation classifier for community posts/comments
+8. Build AI-assisted reply drafting for doctor-side messaging (human-approved only)
+9. Add safeguards/logging so all AI outputs are auditable and reviewable, given the healthcare context

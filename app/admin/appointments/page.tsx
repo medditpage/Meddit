@@ -3,8 +3,28 @@ import * as React from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { createClient } from "@/utils/supabase/client";
 
+interface AdminAppointment {
+  id: string;
+  doctor_id: string;
+  patient_id?: string;
+  appointment_date?: string;
+  appointment_time?: string;
+  status: string;
+  consultation_type?: string;
+  fee_amount?: number;
+  patient?: { name?: string; phone?: string };
+  doctor?: { name?: string; specialization?: string };
+}
+
+interface DoctorGroup {
+  doctorId: string;
+  doctorName: string;
+  doctorSpec: string;
+  appointments: AdminAppointment[];
+}
+
 export default function AdminAppointmentsPage() {
-  const [appointments, setAppointments] = React.useState<any[]>([]);
+  const [appointments, setAppointments] = React.useState<AdminAppointment[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -21,7 +41,7 @@ export default function AdminAppointmentsPage() {
           "*, patient:profiles!appointments_patient_id_fkey(name, phone), doctor:profiles!appointments_doctor_id_fkey(name, specialization)",
         )
         .order("appointment_date", { ascending: false });
-      if (data) setAppointments(data);
+      if (data) setAppointments(data as AdminAppointment[]);
       setLoading(false);
     };
     fetchAll();
@@ -46,7 +66,7 @@ export default function AdminAppointmentsPage() {
   });
 
   // Group by doctor
-  const grouped = filtered.reduce((acc: Record<string, any>, apt) => {
+  const grouped = filtered.reduce((acc: Record<string, DoctorGroup>, apt) => {
     const doctorId = apt.doctor_id;
     const doctorName = apt.doctor?.name || "Unknown";
     const doctorSpec = apt.doctor?.specialization || "";
@@ -136,7 +156,7 @@ export default function AdminAppointmentsPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {groupedList.map((group: any) => (
+            {groupedList.map((group) => (
               <div
                 key={group.doctorId}
                 className="bg-white rounded-2xl border border-slate-200 overflow-hidden"
@@ -207,7 +227,7 @@ export default function AdminAppointmentsPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {group.appointments.map((apt: any) => (
+                          {group.appointments.map((apt) => (
                             <tr
                               key={apt.id}
                               className="hover:bg-slate-50 transition-colors"
@@ -222,10 +242,10 @@ export default function AdminAppointmentsPage() {
                               </td>
                               <td className="px-5 py-4">
                                 <p className="font-semibold text-slate-900">
-                                  {formatDate(apt.appointment_date)}
+                                  {formatDate(apt.appointment_date || "")}
                                 </p>
                                 <p className="text-xs text-slate-400">
-                                  {formatTime(apt.appointment_time)}
+                                  {formatTime(apt.appointment_time || "")}
                                 </p>
                               </td>
                               <td className="px-5 py-4 text-xs font-semibold text-slate-600">
@@ -251,7 +271,7 @@ export default function AdminAppointmentsPage() {
 
                     {/* Mobile */}
                     <div className="sm:hidden divide-y divide-slate-100">
-                      {group.appointments.map((apt: any) => (
+                      {group.appointments.map((apt) => (
                         <div key={apt.id} className="p-4">
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <div>
@@ -272,13 +292,13 @@ export default function AdminAppointmentsPage() {
                             <div className="p-2 bg-slate-50 rounded-lg">
                               <p className="text-slate-400">Date</p>
                               <p className="font-semibold text-slate-800">
-                                {formatDate(apt.appointment_date)}
+                                {formatDate(apt.appointment_date || "")}
                               </p>
                             </div>
                             <div className="p-2 bg-slate-50 rounded-lg">
                               <p className="text-slate-400">Time</p>
                               <p className="font-semibold text-slate-800">
-                                {formatTime(apt.appointment_time)}
+                                {formatTime(apt.appointment_time || "")}
                               </p>
                             </div>
                             <div className="p-2 bg-slate-50 rounded-lg">

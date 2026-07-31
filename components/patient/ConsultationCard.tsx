@@ -283,7 +283,7 @@ export const ConsultationCard = React.forwardRef<
               <span className="truncate">{doctor.specialty}</span>
               <span className="shrink-0 flex items-center gap-1">
                 <span className="w-1 h-1 rounded-full bg-current opacity-50" />
-                {appointment.type === "video" ? "Video Call" : "Clinic Visit"}
+                {appointment.type === "video" ? "Clinic Visit" : "Clinic Visit"}
               </span>
             </div>
           </div>
@@ -333,9 +333,7 @@ export const ConsultationCard = React.forwardRef<
             >
               {actionLabel ||
                 (isUpcoming
-                  ? appointment.type === "video"
-                    ? "Join Link"
-                    : "Reschedule"
+                  ? "View Details"
                   : "Rebook")}
             </button>
           )}

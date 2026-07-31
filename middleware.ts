@@ -30,13 +30,14 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
   const isLoginPage = pathname === "/login";
+  const isLandingPage = pathname === "/";
   const isAdminRoute = pathname.startsWith("/admin");
 
-  if (!user && !isLoginPage) {
+  if (!user && !isLoginPage && !isLandingPage) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
   if (user && isLoginPage) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   // Admin route protection — fetch role from DB

@@ -1,95 +1,47 @@
 "use client";
-// app/seeting/page.tsx
+
+// app/settings/page.tsx
+// Complete Production Settings & Profile Manager covering all 47 schema columns of public.profiles
+
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { createClient } from "@/utils/supabase/client";
-import { useStore } from "@/lib/store";
-
-const PencilIcon = () => (
-  <svg
-    className="w-4 h-4"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    viewBox="0 0 24 24"
-  >
-    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-  </svg>
-);
-
-const ViewField = ({ label, value }: { label: string; value?: string }) => (
-  <div>
-    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-      {label}
-    </p>
-    <p className="text-slate-900 font-medium text-sm">
-      {value || (
-        <span className="text-slate-300 font-normal italic">Not set</span>
-      )}
-    </p>
-  </div>
-);
-
-const InputField = ({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-}: any) => (
-  <div>
-    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-      {label}
-    </label>
-    <input
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-    />
-  </div>
-);
-
-const TextAreaField = ({
-  label,
-  value,
-  onChange,
-  placeholder,
-  rows = 2,
-}: any) => (
-  <div>
-    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-      {label}
-    </label>
-    <textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      rows={rows}
-      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
-    />
-  </div>
-);
+import {
+  User,
+  ShieldCheck,
+  Stethoscope,
+  Clock,
+  HeartPulse,
+  PhoneCall,
+  Award,
+  Save,
+  Edit3,
+  FileText,
+  Upload,
+  CheckCircle,
+  AlertTriangle,
+  Globe,
+  Lock,
+} from "lucide-react";
 
 export default function SettingsPage() {
-  const user = useStore((state) => state.user);
-  const login = useStore((state) => state.login);
+  const router = useRouter();
 
   const [profile, setProfile] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [editMode, setEditMode] = React.useState(false);
-  const [uploadingAadhaar, setUploadingAadhaar] = React.useState(false);
-  const [uploadingCV, setUploadingCV] = React.useState(false);
+  const [authUserId, setAuthUserId] = React.useState<string | null>(null);
+
   const [message, setMessage] = React.useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
-  const [authUserId, setAuthUserId] = React.useState<string | null>(null);
 
-  // Common
+  // -------------------------------------------------------------
+  // 1. BASIC PROFILE FIELDS (ALL USERS)
+  // -------------------------------------------------------------
   const [name, setName] = React.useState("");
   const [username, setUsername] = React.useState("");
   const [phone, setPhone] = React.useState("");
@@ -97,16 +49,27 @@ export default function SettingsPage() {
   const [about, setAbout] = React.useState("");
   const [location, setLocation] = React.useState("");
   const [preferredLanguage, setPreferredLanguage] = React.useState("");
+  const [languages, setLanguages] = React.useState("");
+  const [isPublic, setIsPublic] = React.useState(true);
 
-  // Doctor
+  // Verification & Security
+  const [aadhaarUrl, setAadhaarUrl] = React.useState("");
+  const [cvUrl, setCvUrl] = React.useState("");
+  const [uploadingAadhaar, setUploadingAadhaar] = React.useState(false);
+  const [uploadingCV, setUploadingCV] = React.useState(false);
+
+  // -------------------------------------------------------------
+  // 2. DOCTOR CREDENTIALS & PRACTICE FIELDS (DOCTOR)
+  // -------------------------------------------------------------
   const [specialization, setSpecialization] = React.useState("");
   const [hospital, setHospital] = React.useState("");
   const [professionalEmail, setProfessionalEmail] = React.useState("");
   const [consultingFee, setConsultingFee] = React.useState("");
   const [experienceYears, setExperienceYears] = React.useState("");
-  const [languages, setLanguages] = React.useState("");
   const [mciNumber, setMciNumber] = React.useState("");
   const [availability, setAvailability] = React.useState("");
+
+  // Availability Slots Manager
   const [availSlots, setAvailSlots] = React.useState<any[]>([]);
   const [savingAvailability, setSavingAvailability] = React.useState(false);
   const [availabilityMessage, setAvailabilityMessage] = React.useState<{
@@ -114,48 +77,35 @@ export default function SettingsPage() {
     text: string;
   } | null>(null);
 
-  const dayNames = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-
-  const defaultSlot = {
-    day_of_week: 0,
-    start_time: "10:00",
-    end_time: "18:00",
-    slot_duration_minutes: 30,
-    is_active: true,
-  };
-  const [isPublic, setIsPublic] = React.useState(true);
-  const [cvUrl, setCvUrl] = React.useState("");
-  const [aadhaarUrl, setAadhaarUrl] = React.useState("");
-
-  // Patient
+  // -------------------------------------------------------------
+  // 3. PATIENT HEALTH & ABHA DETAILS (PATIENT)
+  // -------------------------------------------------------------
   const [dateOfBirth, setDateOfBirth] = React.useState("");
   const [bloodGroup, setBloodGroup] = React.useState("");
-  const [allergies, setAllergies] = React.useState("");
-  const [currentMedications, setCurrentMedications] = React.useState("");
-  const [medicalConditions, setMedicalConditions] = React.useState("");
-  const [seeDoctorMode, setSeeDoctorMode] = React.useState(false);
   const [heightCm, setHeightCm] = React.useState("");
   const [weightKg, setWeightKg] = React.useState("");
   const [abhaNumber, setAbhaNumber] = React.useState("");
   const [insuranceProvider, setInsuranceProvider] = React.useState("");
   const [insurancePolicy, setInsurancePolicy] = React.useState("");
+  const [seeDoctorMode, setSeeDoctorMode] = React.useState(false);
+
+  // -------------------------------------------------------------
+  // 4. PATIENT MEDICAL HISTORY (PATIENT)
+  // -------------------------------------------------------------
+  const [allergies, setAllergies] = React.useState("");
+  const [currentMedications, setCurrentMedications] = React.useState("");
+  const [medicalConditions, setMedicalConditions] = React.useState("");
   const [familyHistory, setFamilyHistory] = React.useState("");
   const [pastSurgeries, setPastSurgeries] = React.useState("");
+
+  // -------------------------------------------------------------
+  // 5. EMERGENCY CONTACT (ALL USERS)
+  // -------------------------------------------------------------
   const [emergencyName, setEmergencyName] = React.useState("");
   const [emergencyPhone, setEmergencyPhone] = React.useState("");
   const [emergencyRelation, setEmergencyRelation] = React.useState("");
-  const [patientAadhaarUrl, setPatientAadhaarUrl] = React.useState("");
 
-  
-
+  // Populate state from DB row
   const populateForm = (data: any) => {
     setProfile(data);
     setName(data.name || "");
@@ -167,34 +117,41 @@ export default function SettingsPage() {
     setAbout(data.about || "");
     setLocation(data.location || "");
     setPreferredLanguage(data.preferred_language || "");
+    setLanguages(data.languages || "");
+    setIsPublic(data.is_public ?? true);
+    setAadhaarUrl(data.aadhaar_url || "");
+
+    // Doctor
     setSpecialization(data.specialization || "");
     setHospital(data.hospital || "");
     setProfessionalEmail(data.professional_email || "");
-    setConsultingFee(data.consulting_fee || "");
+    setConsultingFee(data.consulting_fee?.toString() || "");
     setExperienceYears(data.experience_years?.toString() || "");
-    setLanguages(data.languages || "");
     setMciNumber(data.mci_number || "");
-    setAvailability(data.availability || ""); // keep this as is - it's the string field
-    setIsPublic(data.is_public ?? true);
+    setAvailability(data.availability || "");
     setCvUrl(data.cv_url || "");
-    setAadhaarUrl(data.aadhaar_url || "");
+
+    // Patient
     setDateOfBirth(data.date_of_birth || "");
     setBloodGroup(data.blood_group || "");
-    setAllergies(data.allergies || "");
-    setCurrentMedications(data.current_medications || "");
-    setMedicalConditions(data.medical_conditions || "");
-    setSeeDoctorMode(data.see_doctor_mode || false);
     setHeightCm(data.height_cm?.toString() || "");
     setWeightKg(data.weight_kg?.toString() || "");
     setAbhaNumber(data.abha_number || "");
     setInsuranceProvider(data.insurance_provider || "");
     setInsurancePolicy(data.insurance_policy || "");
+    setSeeDoctorMode(data.see_doctor_mode || false);
+
+    // Medical History
+    setAllergies(data.allergies || "");
+    setCurrentMedications(data.current_medications || "");
+    setMedicalConditions(data.medical_conditions || "");
     setFamilyHistory(data.family_history || "");
     setPastSurgeries(data.past_surgeries || "");
+
+    // Emergency Contact
     setEmergencyName(data.emergency_contact_name || "");
     setEmergencyPhone(data.emergency_contact_phone || "");
     setEmergencyRelation(data.emergency_contact_relation || "");
-    setPatientAadhaarUrl(data.aadhaar_url || "");
   };
 
   React.useEffect(() => {
@@ -208,1301 +165,756 @@ export default function SettingsPage() {
         return;
       }
       setAuthUserId(authUser.id);
+
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", authUser.id)
         .single();
-      if (error) console.error("Fetch error:", error);
+
+      if (error) console.error("Fetch profile error:", error);
       if (data) populateForm(data);
 
-      // ADD THIS HERE
-      const { data: availData } = await supabase
-        .from("doctor_availability")
-        .select("*")
-        .eq("doctor_id", authUser.id)
-        .order("day_of_week", { ascending: true });
-      if (availData) setAvailSlots(availData);
+      if (data?.role === "doctor") {
+        const { data: slots } = await supabase
+          .from("doctor_availability")
+          .select("*")
+          .eq("doctor_id", authUser.id)
+          .order("day_of_week", { ascending: true });
+        if (slots) setAvailSlots(slots);
+      }
 
       setLoading(false);
     };
+
     fetchProfile();
   }, []);
 
-  // Calculate BMI
+  // Completion calculation
+  const calcCompletion = () => {
+    const isDoc = profile?.role === "doctor";
+    let filled = 0;
+    let total = 0;
+
+    const check = (val: any) => {
+      total++;
+      if (val !== null && val !== undefined && val !== "") filled++;
+    };
+
+    check(name);
+    check(username);
+    check(phone);
+    check(gender);
+    check(about);
+    check(location);
+    check(preferredLanguage);
+    check(languages);
+    check(aadhaarUrl);
+
+    if (isDoc) {
+      check(specialization);
+      check(hospital);
+      check(professionalEmail);
+      check(consultingFee);
+      check(experienceYears);
+      check(mciNumber);
+      check(cvUrl);
+    } else {
+      check(dateOfBirth);
+      check(bloodGroup);
+      check(heightCm);
+      check(weightKg);
+      check(abhaNumber);
+      check(allergies);
+      check(currentMedications);
+      check(medicalConditions);
+      check(emergencyName);
+      check(emergencyPhone);
+    }
+
+    return Math.min(100, Math.round((filled / Math.max(1, total)) * 100));
+  };
+
+  const completion = calcCompletion();
+
+  // BMI Calculation
   const bmi = React.useMemo(() => {
-    const h = parseFloat(heightCm);
+    const h = parseFloat(heightCm) / 100;
     const w = parseFloat(weightKg);
-    if (!h || !w) return null;
-    const bmiVal = w / ((h / 100) * (h / 100));
-    return bmiVal.toFixed(1);
+    if (!h || !w || h <= 0 || w <= 0) return null;
+    return (w / (h * h)).toFixed(1);
   }, [heightCm, weightKg]);
 
-  const bmiCategory = (bmi: string) => {
-    const b = parseFloat(bmi);
-    if (b < 18.5) return { label: "Underweight", color: "text-blue-600" };
-    if (b < 25) return { label: "Normal", color: "text-teal-600" };
-    if (b < 30) return { label: "Overweight", color: "text-amber-600" };
-    return { label: "Obese", color: "text-red-600" };
+  const bmiCategory = (val: string | null) => {
+    if (!val) return { label: "N/A", color: "text-slate-500" };
+    const num = parseFloat(val);
+    if (num < 18.5) return { label: "Underweight", color: "text-amber-500" };
+    if (num < 25) return { label: "Normal weight", color: "text-emerald-500" };
+    if (num < 30) return { label: "Overweight", color: "text-amber-500" };
+    return { label: "Obese", color: "text-rose-500" };
   };
 
-  // Calculate profile completion
-  const calcCompletion = () => {
-    const isDoctor = profile?.role === "doctor";
-    const fields = isDoctor
-      ? [
-          name,
-          specialization,
-          hospital,
-          mciNumber,
-          consultingFee,
-          experienceYears,
-          languages,
-          aadhaarUrl,
-          cvUrl,
-          about,
-        ]
-      : [
-          name,
-          dateOfBirth,
-          bloodGroup,
-          emergencyName,
-          emergencyPhone,
-          patientAadhaarUrl,
-          allergies,
-          currentMedications,
-          heightCm,
-          weightKg,
-        ];
-    const filled = fields.filter(Boolean).length;
-    return Math.round((filled / fields.length) * 100);
-  };
-
-  const completion = profile ? calcCompletion() : 0;
-
-  const getFileUrl = async (path: string) => {
-    const supabase = createClient();
-    const { data } = await supabase.storage
-      .from("documents")
-      .createSignedUrl(path, 3600);
-    return data?.signedUrl;
-  };
-
-  const handleViewFile = async (path: string) => {
-    const url = await getFileUrl(path);
-    if (url) window.open(url, "_blank");
-  };
-
-  const uploadFile = async (
-    file: File,
-    folder: string,
-    onSuccess: (path: string) => void,
-    setUploading: (v: boolean) => void,
+  // Upload Handlers
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: "cv_url" | "aadhaar_url"
   ) => {
-    if (!authUserId) return;
-    setUploading(true);
+    const file = e.target.files?.[0];
+    if (!file || !authUserId) return;
+
+    if (field === "cv_url") setUploadingCV(true);
+    else setUploadingAadhaar(true);
+
     const supabase = createClient();
     const ext = file.name.split(".").pop();
-    const path = `${authUserId}/${folder}_${Date.now()}.${ext}`;
-    const { error } = await supabase.storage
-      .from("documents")
-      .upload(path, file, { upsert: true });
-    if (!error) onSuccess(path);
-    else console.error("Upload error:", error);
-    setUploading(false);
+    const filePath = `documents/${authUserId}/${field}_${Date.now()}.${ext}`;
+
+    try {
+      const { error: uploadErr } = await supabase.storage
+        .from("documents")
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadErr) throw uploadErr;
+
+      const { data: urlData } = supabase.storage
+        .from("documents")
+        .getPublicUrl(filePath);
+      const publicUrl = urlData.publicUrl;
+
+      if (field === "cv_url") setCvUrl(publicUrl);
+      else setAadhaarUrl(publicUrl);
+
+      setMessage({
+        type: "success",
+        text: `${field === "cv_url" ? "CV/Resume PDF" : "Aadhaar Government ID"} uploaded successfully! Click Save Changes to apply.`,
+      });
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      setMessage({
+        type: "error",
+        text: `Upload failed: ${err.message || "Network error"}`,
+      });
+    } finally {
+      setUploadingCV(false);
+      setUploadingAadhaar(false);
+    }
   };
 
+  // Availability Slot Handlers
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const handleAddSlot = () => {
-    setAvailSlots([
-      ...availSlots,
-      { ...defaultSlot, id: `temp_${Date.now()}` },
+    setAvailSlots((prev) => [
+      ...prev,
+      {
+        day_of_week: 1,
+        start_time: "09:00",
+        end_time: "17:00",
+        slot_duration_minutes: 30,
+        is_active: true,
+      },
     ]);
   };
 
   const handleUpdateSlot = (index: number, field: string, value: any) => {
-    const updated = [...availSlots];
-    updated[index] = { ...updated[index], [field]: value };
-    setAvailSlots(updated);
+    setAvailSlots((prev) =>
+      prev.map((slot, i) => (i === index ? { ...slot, [field]: value } : slot))
+    );
   };
 
   const handleRemoveSlot = (index: number) => {
-    setAvailSlots(availSlots.filter((_, i) => i !== index));
+    setAvailSlots((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSaveAvailability = async () => {
-    if (!authUserId) return;
     setSavingAvailability(true);
     setAvailabilityMessage(null);
     const supabase = createClient();
 
     try {
-      // Delete all existing slots
-      await supabase
-        .from("doctor_availability")
-        .delete()
-        .eq("doctor_id", authUserId);
+      await supabase.from("doctor_availability").delete().eq("doctor_id", authUserId);
 
-      // Insert new slots
       if (availSlots.length > 0) {
-        const toInsert = availSlots.map((slot) => ({
+        const slotsToInsert = availSlots.map((slot) => ({
           doctor_id: authUserId,
-          day_of_week: parseInt(slot.day_of_week),
+          day_of_week: Number(slot.day_of_week),
           start_time: slot.start_time,
           end_time: slot.end_time,
-          slot_duration_minutes: parseInt(slot.slot_duration_minutes),
+          slot_duration_minutes: Number(slot.slot_duration_minutes),
           is_active: slot.is_active,
         }));
 
-        const { error } = await supabase
-          .from("doctor_availability")
-          .insert(toInsert);
-
+        const { error } = await supabase.from("doctor_availability").insert(slotsToInsert);
         if (error) throw error;
       }
 
       setAvailabilityMessage({
         type: "success",
-        text: "Availability saved successfully!",
+        text: "Consultation availability schedule saved successfully!",
       });
-
-      // Refresh
-      const { data } = await supabase
-        .from("doctor_availability")
-        .select("*")
-        .eq("doctor_id", authUserId)
-        .order("day_of_week", { ascending: true });
-      if (data) setAvailSlots(data);
     } catch (err: any) {
-      console.error("Availability save error:", err);
       setAvailabilityMessage({
         type: "error",
-        text: "Failed to save: " + err.message,
+        text: err.message || "Failed to save availability.",
       });
+    } finally {
+      setSavingAvailability(false);
     }
-    setSavingAvailability(false);
   };
 
+  // Save Full Profile
   const handleSave = async () => {
-    if (!authUserId) return;
     setSaving(true);
     setMessage(null);
-    const supabase = createClient(); 
+    const supabase = createClient();
 
-    // ← YE ADD KARO YAHAN
-    if (username) {
-      const { data: existing } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("username", username)
-        .neq("id", authUserId)
-        .single();
+    const isDoc = profile?.role === "doctor";
+    const cleanUsername = username.toLowerCase().replace(/[^a-z0-9_]/g, "");
 
-      if (existing) {
-        setMessage({
-          type: "error",
-          text: "Username already taken. Try another.",
-        });
-        setSaving(false);
-        return;
-      }
-    }
-    const isDoctor = profile?.role === "doctor";
+    const initials = name
+      ? name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
+      : "M";
 
-    const avatarInitials = name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .substring(0, 2)
-      .toUpperCase();
+    const compVal = calcCompletion();
 
-    const updateData: any = {
+    const payload: any = {
       name,
-      username: username || null,
+      username: cleanUsername,
+      phone,
       gender,
       about,
       location,
-      avatar_initials: avatarInitials,
       preferred_language: preferredLanguage,
+      languages,
+      is_public: isPublic,
+      aadhaar_url: aadhaarUrl || null,
+      avatar_initials: initials,
+      profile_completed: compVal,
     };
 
-    if (isDoctor) {
-      Object.assign(updateData, {
-        specialization,
-        hospital,
-        professional_email: professionalEmail,
-        consulting_fee: consultingFee,
-        experience_years: experienceYears ? parseInt(experienceYears) : null,
-        languages,
-        mci_number: mciNumber,
-        availability,
-        is_public: isPublic,
-        cv_url: cvUrl || null,
-        aadhaar_url: aadhaarUrl || null,
-      });
+    if (isDoc) {
+      payload.specialization = specialization;
+      payload.hospital = hospital;
+      payload.professional_email = professionalEmail;
+      payload.consulting_fee = consultingFee ? consultingFee : null;
+      payload.experience_years = experienceYears ? parseInt(experienceYears) : 0;
+      payload.mci_number = mciNumber;
+      payload.availability = availability;
+      payload.cv_url = cvUrl || null;
     } else {
-      Object.assign(updateData, {
-        date_of_birth: dateOfBirth || null,
-        blood_group: bloodGroup,
-        allergies,
-        current_medications: currentMedications,
-        medical_conditions: medicalConditions,
-        see_doctor_mode: seeDoctorMode,
-        height_cm: heightCm ? parseFloat(heightCm) : null,
-        weight_kg: weightKg ? parseFloat(weightKg) : null,
-        abha_number: abhaNumber,
-        insurance_provider: insuranceProvider,
-        insurance_policy: insurancePolicy,
-        family_history: familyHistory,
-        past_surgeries: pastSurgeries,
-        emergency_contact_name: emergencyName,
-        emergency_contact_phone: emergencyPhone,
-        emergency_contact_relation: emergencyRelation,
-        aadhaar_url: patientAadhaarUrl || null,
-        aadhaar_verified: !!patientAadhaarUrl,
-      });
+      payload.date_of_birth = dateOfBirth || null;
+      payload.blood_group = bloodGroup || null;
+      payload.allergies = allergies || null;
+      payload.current_medications = currentMedications || null;
+      payload.medical_conditions = medicalConditions || null;
+      payload.see_doctor_mode = seeDoctorMode;
+      payload.height_cm = heightCm ? parseFloat(heightCm) : null;
+      payload.weight_kg = weightKg ? parseFloat(weightKg) : null;
+      payload.abha_number = abhaNumber || null;
+      payload.insurance_provider = insuranceProvider || null;
+      payload.insurance_policy = insurancePolicy || null;
+      payload.family_history = familyHistory || null;
+      payload.past_surgeries = pastSurgeries || null;
+      payload.emergency_contact_name = emergencyName || null;
+      payload.emergency_contact_phone = emergencyPhone || null;
+      payload.emergency_contact_relation = emergencyRelation || null;
     }
 
-    const { error } = await supabase
-      .from("profiles")
-      .update(updateData)
-      .eq("id", authUserId);
+    const { error } = await supabase.from("profiles").update(payload).eq("id", authUserId);
 
+    setSaving(false);
     if (error) {
-      console.error("Save error:", JSON.stringify(error));
-      setMessage({ type: "error", text: "Failed to save: " + error.message });
+      setMessage({ type: "error", text: error.message });
     } else {
-      if (user?.id)
-        login({
-          id: user.id,
-          name,
-          role: profile?.role || "doctor",
-          avatarInitials,
-        });
       setMessage({ type: "success", text: "Profile updated successfully!" });
       setEditMode(false);
-      // Refresh profile
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", authUserId)
-        .single();
-      if (data) populateForm(data);   
+      setProfile({ ...profile, ...payload });
     }
-    setSaving(false);
   };
 
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="max-w-2xl mx-auto space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-20 bg-slate-100 rounded-2xl animate-pulse"
-            />
-          ))}
+        <div className="p-12 text-center text-slate-500 text-xs animate-pulse">
+          Loading profile parameters...
         </div>
       </DashboardLayout>
     );
   }
 
   const isDoctor = profile?.role === "doctor";
-
-  // File upload card component
-  const FileCard = ({
-    label,
-    url,
-    uploading,
-    onUpload,
-    onRemove,
-    accept,
-  }: {
-    label: string;
-    url: string;
-    uploading: boolean;
-    onUpload: (f: File) => void;
-    onRemove: () => void;
-    accept: string;
-  }) => (
-    <div>
-      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-        {label}
-      </label>
-      {url ? (
-        <div className="flex items-center gap-3 p-3 bg-teal-50 border border-teal-200 rounded-xl">
-          <span className="text-2xl">📄</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-teal-700 text-sm font-semibold">
-              ✅ File uploaded
-            </p>
-            <p className="text-teal-500 text-xs truncate">
-              {url.split("/").pop()}
-            </p>
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <button
-              onClick={() => handleViewFile(url)}
-              className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 transition-colors font-medium"
-            >
-              👁 View
-            </button>
-            {editMode && (
-              <button
-                onClick={onRemove}
-                className="text-xs bg-red-50 text-red-500 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors font-medium"
-              >
-                Remove
-              </button>
-            )}
-          </div>
-        </div>
-      ) : editMode ? (
-        <label className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-teal-400 hover:bg-teal-50 transition-colors">
-          <span className="text-2xl">📤</span>
-          <span className="text-sm text-slate-500 font-medium">
-            {uploading ? "Uploading..." : `Click to upload ${label}`}
-          </span>
-          <span className="text-xs text-slate-400">PDF, JPG, PNG accepted</span>
-          <input
-            type="file"
-            accept={accept}
-            className="hidden"
-            disabled={uploading}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onUpload(f);
-            }}
-          />
-        </label>
-      ) : (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
-          <p className="text-red-600 text-sm font-medium">
-            ⚠️ Not uploaded — required for verification
-          </p>
-        </div>
-      )}
-    </div>
-  );
+  const isVerified = profile?.is_verified || profile?.verification_status === "approved";
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto space-y-6 pb-10">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">
-              Profile Settings
-            </h1>
-            <p className="text-slate-500 mt-1 text-sm">
-              {isDoctor
-                ? "Your professional doctor profile"
-                : "Your patient health profile"}
-            </p>
+      <div className="space-y-6 max-w-4xl mx-auto text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 pb-12">
+        {/* Header Card */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-lg bg-teal-600 text-white font-bold text-lg flex items-center justify-center shadow-xs shrink-0">
+              {profile?.avatar_initials || name?.substring(0, 2).toUpperCase() || "M"}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+                  {name || "User Profile"}
+                </h1>
+                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-teal-700 dark:text-teal-400 border border-slate-200 dark:border-slate-700 capitalize">
+                  {profile?.role || "patient"}
+                </span>
+
+                {/* Verification Status Badge */}
+                {isVerified ? (
+                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" /> Verified Practitioner
+                  </span>
+                ) : profile?.verification_status === "rejected" ? (
+                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Verification Rejected
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> Verification Pending
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-1">
+                @{profile?.username || "username"} • Member since {new Date(profile?.created_at || Date.now()).getFullYear()}
+              </p>
+            </div>
           </div>
+
           <button
             onClick={() => {
-              setEditMode(!editMode);
-              setMessage(null);
+              if (editMode) handleSave();
+              else setEditMode(true);
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-              editMode
-                ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                : "bg-teal-600 text-white hover:bg-teal-700"
-            }`}
+            disabled={saving}
+            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white font-medium text-xs rounded-lg transition-colors shadow-xs shrink-0 flex items-center gap-1.5"
           >
-            <PencilIcon />
-            {editMode ? "Cancel" : "Edit Profile"}
+            {editMode ? <Save className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5" />}
+            <span>{saving ? "Saving..." : editMode ? "Save Changes" : "Edit Profile"}</span>
           </button>
         </div>
 
-        {/* Role + Verification Badge */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
-              isDoctor
-                ? "bg-teal-50 text-teal-700 border border-teal-200"
-                : "bg-blue-50 text-blue-700 border border-blue-200"
-            }`}
-          >
-            {isDoctor ? "👨‍⚕️ Doctor Account" : "🏥 Patient Account"}
-            {profile?.is_verified && (
-              <span className="bg-teal-600 text-white text-xs px-2 py-0.5 rounded-full">
-                ✓ Verified
-              </span>
-            )}
-          </div>
-          {!profile?.is_verified && (
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-              ⏳ Verification Pending — Upload documents to get verified
-            </div>
-          )}
-        </div>
-
         {/* Profile Completion Bar */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-semibold text-slate-700">
-              Profile Completion
-            </p>
-            <p className="text-sm font-bold text-teal-600">{completion}%</p>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-2">
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span className="text-slate-700 dark:text-slate-300">Profile Completion Index</span>
+            <span className="text-teal-600 dark:text-teal-400">{completion}% Complete</span>
           </div>
-          <div className="w-full bg-slate-100 rounded-full h-2.5">
+          <div className="w-full bg-slate-100 dark:bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-200 dark:border-slate-800">
             <div
-              className="bg-teal-600 h-2.5 rounded-full transition-all duration-500"
+              className="bg-teal-600 h-full transition-all duration-300 rounded-full"
               style={{ width: `${completion}%` }}
             />
           </div>
-          <p className="text-xs text-slate-400 mt-2">
-            {completion < 100
-              ? `Fill in all fields to reach 100% and get verified faster`
-              : "🎉 Profile is complete!"}
-          </p>
         </div>
 
-        {/* Avatar Card */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-5">
-          <div className="w-20 h-20 rounded-full bg-teal-100 flex items-center justify-center text-teal-800 font-bold text-2xl border border-teal-200 shrink-0">
-            {name
-              ? name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .substring(0, 2)
-                  .toUpperCase()
-              : "?"}
+        {/* Message Banner */}
+        {message && (
+          <div
+            className={`p-3.5 rounded-xl text-xs font-medium border flex items-center gap-2 ${
+              message.type === "success"
+                ? "bg-teal-50 dark:bg-teal-950/60 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300"
+                : "bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300"
+            }`}
+          >
+            {message.type === "success" ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
+            <span>{message.text}</span>
           </div>
-          <div>
-            <p className="font-bold text-slate-900 text-lg">
-              {name || "Your Name"}
-            </p>
-            <p className="text-teal-600 text-sm font-medium">
-              {isDoctor
-                ? specialization || "Specialization not set"
-                : "Patient"}
-            </p>
-            <p className="text-slate-400 text-xs mt-1">
-              @{username || "username"} • ⭐{" "}
-              {profile?.reliability_rating || "0.0"}
-            </p>
-          </div>
-        </div>
-
-        {/* Basic Information */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
-          <h2 className="font-bold text-slate-900 text-lg border-b border-slate-100 pb-3">
-            Basic Information
-          </h2>
-          {editMode ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputField
-                  label="Full Name *"
-                  value={name}
-                  onChange={setName}
-                  placeholder={isDoctor ? "Dr. Arjun Mehta" : "Rahul Sharma"}
-                />
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                    Username
-                  </label>
-                  <div className="flex rounded-xl border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-teal-500">
-                    <span className="px-3 py-2.5 bg-slate-100 text-slate-500 text-sm font-semibold border-r border-slate-200 shrink-0">
-                      {isDoctor ? "dr_" : "pt_"}
-                    </span>
-                    <input
-                      type="text"
-                      value={username.replace(/^(dr_|pt_)/, "")}
-                      onChange={(e) => {
-                        const prefix = isDoctor ? "dr_" : "pt_";
-                        const val = e.target.value
-                          .toLowerCase()
-                          .replace(/[^a-z0-9_]/g, "");
-                        setUsername(prefix + val);
-                      }}
-                      placeholder="your_name"
-                      className="flex-1 px-3 py-2.5 text-sm outline-none bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                    Gender
-                  </label>
-                  <select
-                    value={gender}
-                    onChange={(e) => setGender(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-                  >
-                    <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                    Phone
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="tel"
-                      value={phone}
-                      readOnly
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50 text-slate-400 cursor-not-allowed"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                      🔒 Locked
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputField
-                  label="Location"
-                  value={location}
-                  onChange={setLocation}
-                  placeholder="Kanpur, UP"
-                />
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                    Preferred Language
-                  </label>
-                  <select
-                    value={preferredLanguage}
-                    onChange={(e) => setPreferredLanguage(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-                  >
-                    <option value="">Select</option>
-                    {[
-                      "Hindi",
-                      "English",
-                      "Tamil",
-                      "Telugu",
-                      "Bengali",
-                      "Marathi",
-                      "Gujarati",
-                      "Kannada",
-                      "Malayalam",
-                      "Punjabi",
-                    ].map((l) => (
-                      <option key={l} value={l}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <TextAreaField
-                label="About"
-                value={about}
-                onChange={setAbout}
-                placeholder={
-                  isDoctor
-                    ? "Describe your specialty and approach..."
-                    : "Tell us about yourself..."
-                }
-                rows={3}
-              />
-            </>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <ViewField label="Full Name" value={name} />
-              <ViewField
-                label="Username"
-                value={username ? `@${username}` : ""}
-              />
-              <ViewField label="Gender" value={gender} />
-              <ViewField label="Phone" value={phone} />
-              <ViewField label="Location" value={location} />
-              <ViewField label="Preferred Language" value={preferredLanguage} />
-              <div className="md:col-span-2">
-                <ViewField label="About" value={about} />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* DOCTOR FIELDS */}
-        {isDoctor && (
-          <>
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
-              <h2 className="font-bold text-slate-900 text-lg border-b border-slate-100 pb-3">
-                Professional Information
-              </h2>
-              {editMode ? (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField
-                      label="Specialization *"
-                      value={specialization}
-                      onChange={setSpecialization}
-                      placeholder="Cardiologist"
-                    />
-                    <InputField
-                      label="MCI/NMC Registration No. *"
-                      value={mciNumber}
-                      onChange={setMciNumber}
-                      placeholder="MCI-12345"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField
-                      label="Experience (Years)"
-                      value={experienceYears}
-                      onChange={setExperienceYears}
-                      placeholder="10"
-                      type="number"
-                    />
-                    <InputField
-                      label="Consulting Fee (₹)"
-                      value={consultingFee}
-                      onChange={setConsultingFee}
-                      placeholder="500"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField
-                      label="Hospital / Clinic"
-                      value={hospital}
-                      onChange={setHospital}
-                      placeholder="AIIMS Delhi"
-                    />
-                    <InputField
-                      label="Professional Email"
-                      value={professionalEmail}
-                      onChange={setProfessionalEmail}
-                      placeholder="doctor@hospital.com"
-                      type="email"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                        Languages Spoken
-                      </label>
-                      <select
-                        value={languages}
-                        onChange={(e) => setLanguages(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-                      >
-                        <option value="">Select Primary</option>
-                        {[
-                          "Hindi",
-                          "English",
-                          "Hindi + English",
-                          "Tamil",
-                          "Telugu",
-                          "Bengali",
-                          "Marathi",
-                          "Gujarati",
-                          "Kannada",
-                          "Malayalam",
-                        ].map((l) => (
-                          <option key={l} value={l}>
-                            {l}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <InputField
-                      label="Availability"
-                      value={availability}
-                      onChange={setAvailability}
-                      placeholder="Mon-Sat, 10am-6pm"
-                    />
-                  </div>
-                  {/* Profile Visibility */}
-                  <div
-                    className={`p-4 rounded-xl border-2 transition-colors ${isPublic ? "border-teal-400 bg-teal-50" : "border-slate-200"}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-slate-900 text-sm">
-                          Public Profile
-                        </p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          Patients can find and view your profile
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setIsPublic(!isPublic)}
-                        className={`w-12 h-6 rounded-full transition-colors relative ${isPublic ? "bg-teal-600" : "bg-slate-300"}`}
-                      >
-                        <span
-                          className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${isPublic ? "left-6" : "left-0.5"}`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <ViewField label="Specialization" value={specialization} />
-                  <ViewField label="MCI/NMC Number" value={mciNumber} />
-                  <ViewField
-                    label="Experience"
-                    value={experienceYears ? `${experienceYears} years` : ""}
-                  />
-                  <ViewField
-                    label="Consulting Fee"
-                    value={consultingFee ? `₹${consultingFee}` : ""}
-                  />
-                  <ViewField label="Hospital / Clinic" value={hospital} />
-                  <ViewField
-                    label="Professional Email"
-                    value={professionalEmail}
-                  />
-                  <ViewField label="Languages" value={languages} />
-                  <ViewField label="Availability" value={availability} />
-                  <ViewField
-                    label="Profile Visibility"
-                    value={isPublic ? "🌐 Public" : "🔒 Private"}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Doctor Documents */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
-              <h2 className="font-bold text-slate-900 text-lg border-b border-slate-100 pb-3">
-                Verification Documents{" "}
-                <span className="text-xs font-normal text-red-500">
-                  * Required
-                </span>
-              </h2>
-              <FileCard
-                label="Aadhaar Card *"
-                url={aadhaarUrl}
-                uploading={uploadingAadhaar}
-                onUpload={(f) =>
-                  uploadFile(f, "aadhaar", setAadhaarUrl, setUploadingAadhaar)
-                }
-                onRemove={() => setAadhaarUrl("")}
-                accept=".pdf,.jpg,.jpeg,.png"
-              />
-              <FileCard
-                label="Resume / CV *"
-                url={cvUrl}
-                uploading={uploadingCV}
-                onUpload={(f) => uploadFile(f, "cv", setCvUrl, setUploadingCV)}
-                onRemove={() => setCvUrl("")}
-                accept=".pdf"
-              />
-            </div>
-          </>
         )}
 
-        {/* PATIENT FIELDS */}
-        {!isDoctor && (
-          <>
-            {/* Health Info */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
-              <h2 className="font-bold text-slate-900 text-lg border-b border-slate-100 pb-3">
-                Health Information
-              </h2>
-              {editMode ? (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField
-                      label="Date of Birth"
-                      value={dateOfBirth}
-                      onChange={setDateOfBirth}
-                      placeholder=""
-                      type="date"
-                    />
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                        Blood Group
-                      </label>
-                      <select
-                        value={bloodGroup}
-                        onChange={(e) => setBloodGroup(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-                      >
-                        <option value="">Select</option>
-                        {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(
-                          (bg) => (
-                            <option key={bg} value={bg}>
-                              {bg}
-                            </option>
-                          ),
-                        )}
-                      </select>
-                    </div>
-                  </div>
-                  {/* Height Weight BMI */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <InputField
-                      label="Height (cm)"
-                      value={heightCm}
-                      onChange={setHeightCm}
-                      placeholder="170"
-                      type="number"
-                    />
-                    <InputField
-                      label="Weight (kg)"
-                      value={weightKg}
-                      onChange={setWeightKg}
-                      placeholder="70"
-                      type="number"
-                    />
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                        BMI (Auto)
-                      </label>
-                      <div className="px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm">
-                        {bmi ? (
-                          <span
-                            className={`font-bold ${bmiCategory(bmi).color}`}
-                          >
-                            {bmi} — {bmiCategory(bmi).label}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">
-                            Enter height & weight
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <TextAreaField
-                    label="Known Allergies"
-                    value={allergies}
-                    onChange={setAllergies}
-                    placeholder="e.g. Penicillin, Dust"
-                  />
-                  <TextAreaField
-                    label="Current Medications"
-                    value={currentMedications}
-                    onChange={setCurrentMedications}
-                    placeholder="e.g. Amlodipine 5mg"
-                  />
-                  <TextAreaField
-                    label="Medical Conditions"
-                    value={medicalConditions}
-                    onChange={setMedicalConditions}
-                    placeholder="e.g. Type 2 Diabetes"
-                  />
-                  <TextAreaField
-                    label="Family Medical History"
-                    value={familyHistory}
-                    onChange={setFamilyHistory}
-                    placeholder="e.g. Father: Diabetes, Mother: BP"
-                  />
-                  <TextAreaField
-                    label="Past Surgeries / Hospitalizations"
-                    value={pastSurgeries}
-                    onChange={setPastSurgeries}
-                    placeholder="e.g. Appendectomy 2018"
-                  />
-                </>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <ViewField label="Date of Birth" value={dateOfBirth} />
-                  <ViewField label="Blood Group" value={bloodGroup} />
-                  <ViewField
-                    label="Height"
-                    value={heightCm ? `${heightCm} cm` : ""}
-                  />
-                  <ViewField
-                    label="Weight"
-                    value={weightKg ? `${weightKg} kg` : ""}
-                  />
-                  {bmi && (
-                    <ViewField
-                      label="BMI"
-                      value={`${bmi} — ${bmiCategory(bmi).label}`}
-                    />
-                  )}
-                  <ViewField label="Known Allergies" value={allergies} />
-                  <ViewField
-                    label="Current Medications"
-                    value={currentMedications}
-                  />
-                  <ViewField
-                    label="Medical Conditions"
-                    value={medicalConditions}
-                  />
-                  <ViewField label="Family History" value={familyHistory} />
-                  <ViewField label="Past Surgeries" value={pastSurgeries} />
-                </div>
-              )}
-
-              {/* See Doctor Mode */}
-              <div
-                className={`p-4 rounded-xl border-2 transition-colors ${seeDoctorMode ? "border-teal-400 bg-teal-50" : "border-slate-200"}`}
+        {/* ------------------------------------------------------------- */}
+        {/* SECTION 1: BASIC PROFILE INFORMATION */}
+        {/* ------------------------------------------------------------- */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-4">
+          <h2 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <User className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span>Basic Profile Information</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Public Profile Visibility:</span>
+              <button
+                onClick={() => editMode && setIsPublic(!isPublic)}
+                disabled={!editMode}
+                className={`px-3 py-1 rounded-md text-xs font-semibold border transition-colors flex items-center gap-1.5 ${
+                  isPublic
+                    ? "bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700"
+                }`}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-slate-900 text-sm">
-                      See Doctor Mode
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Platform manages your complete medical data during
-                      consultation
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => editMode && setSeeDoctorMode(!seeDoctorMode)}
-                    className={`w-12 h-6 rounded-full transition-colors relative ${seeDoctorMode ? "bg-teal-600" : "bg-slate-300"} ${!editMode ? "opacity-60 cursor-not-allowed" : ""}`}
-                  >
-                    <span
-                      className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${seeDoctorMode ? "left-6" : "left-0.5"}`}
-                    />
-                  </button>
-                </div>
-              </div>
+                <Globe className="w-3.5 h-3.5" />
+                <span>{isPublic ? "Publicly Visible" : "Private"}</span>
+              </button>
             </div>
+          </h2>
 
-            {/* Insurance + ABHA */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
-              <h2 className="font-bold text-slate-900 text-lg border-b border-slate-100 pb-3">
-                Insurance & Health ID
-              </h2>
-              {editMode ? (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField
-                      label="Insurance Provider"
-                      value={insuranceProvider}
-                      onChange={setInsuranceProvider}
-                      placeholder="Star Health, LIC"
-                    />
-                    <InputField
-                      label="Policy Number"
-                      value={insurancePolicy}
-                      onChange={setInsurancePolicy}
-                      placeholder="POL-123456"
-                    />
-                  </div>
-                  <InputField
-                    label="ABHA Number (Ayushman Bharat Health ID)"
-                    value={abhaNumber}
-                    onChange={setAbhaNumber}
-                    placeholder="12-3456-7890-1234"
-                  />
-                </>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <ViewField
-                    label="Insurance Provider"
-                    value={insuranceProvider}
-                  />
-                  <ViewField label="Policy Number" value={insurancePolicy} />
-                  <ViewField label="ABHA Number" value={abhaNumber} />
-                </div>
-              )}
-            </div>
-
-            {/* Emergency Contact */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
-              <h2 className="font-bold text-slate-900 text-lg border-b border-slate-100 pb-3">
-                Emergency Contact{" "}
-                <span className="text-xs font-normal text-red-500">
-                  * Critical
-                </span>
-              </h2>
-              {editMode ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <InputField
-                    label="Name *"
-                    value={emergencyName}
-                    onChange={setEmergencyName}
-                    placeholder="Rakesh Sharma"
-                  />
-                  <InputField
-                    label="Phone *"
-                    value={emergencyPhone}
-                    onChange={setEmergencyPhone}
-                    placeholder="9876543210"
-                    type="tel"
-                  />
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                      Relation
-                    </label>
-                    <select
-                      value={emergencyRelation}
-                      onChange={(e) => setEmergencyRelation(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-                    >
-                      <option value="">Select</option>
-                      {[
-                        "Father",
-                        "Mother",
-                        "Spouse",
-                        "Sibling",
-                        "Son",
-                        "Daughter",
-                        "Friend",
-                        "Other",
-                      ].map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <ViewField label="Name" value={emergencyName} />
-                  <ViewField label="Phone" value={emergencyPhone} />
-                  <ViewField label="Relation" value={emergencyRelation} />
-                </div>
-              )}
-            </div>
-
-            {/* Aadhaar */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
-              <h2 className="font-bold text-slate-900 text-lg border-b border-slate-100 pb-3">
-                Identity Verification
-                {patientAadhaarUrl && (
-                  <span className="ml-2 text-xs font-semibold text-teal-600 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full">
-                    ✓ Verified
-                  </span>
-                )}
-              </h2>
-              {!patientAadhaarUrl && (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 font-medium">
-                  🔓 Upload Aadhaar to unlock See Doctor Mode, Medical Vault,
-                  and Reliability Rating
-                </div>
-              )}
-              <FileCard
-                label="Aadhaar Card *"
-                url={patientAadhaarUrl}
-                uploading={uploadingAadhaar}
-                onUpload={(f) =>
-                  uploadFile(
-                    f,
-                    "aadhaar",
-                    setPatientAadhaarUrl,
-                    setUploadingAadhaar,
-                  )
-                }
-                onRemove={() => setPatientAadhaarUrl("")}
-                accept=".pdf,.jpg,.jpeg,.png"
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Full Name *</label>
+              <input
+                type="text"
+                disabled={!editMode}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
               />
             </div>
-          </>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Username (@handle)</label>
+              <input
+                type="text"
+                disabled={!editMode}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Phone Number</label>
+              <input
+                type="text"
+                disabled={!editMode}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+91 98765 43210"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Gender</label>
+              <select
+                disabled={!editMode}
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+              >
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Location / Address</label>
+              <input
+                type="text"
+                disabled={!editMode}
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="City, State, Country"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Preferred Spoken Language</label>
+              <input
+                type="text"
+                disabled={!editMode}
+                value={preferredLanguage}
+                onChange={(e) => setPreferredLanguage(e.target.value)}
+                placeholder="e.g. English, Hindi"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">All Spoken Languages</label>
+              <input
+                type="text"
+                disabled={!editMode}
+                value={languages}
+                onChange={(e) => setLanguages(e.target.value)}
+                placeholder="e.g. English, Hindi, Marathi, Tamil"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1 text-xs">Bio / Healthcare Summary</label>
+            <textarea
+              disabled={!editMode}
+              rows={3}
+              value={about}
+              onChange={(e) => setAbout(e.target.value)}
+              placeholder="Tell patients or doctors about your health background..."
+              className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-teal-500 resize-none disabled:opacity-60"
+            />
+          </div>
+        </div>
+
+        {/* ------------------------------------------------------------- */}
+        {/* SECTION 2: IDENTITY VERIFICATION & AADHAAR (BOTH ROLES) */}
+        {/* ------------------------------------------------------------- */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-4">
+          <h2 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span>Government Identity Verification (Aadhaar)</span>
+            </span>
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+              profile?.aadhaar_verified || aadhaarUrl
+                ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300"
+                : "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300"
+            }`}>
+              {profile?.aadhaar_verified || aadhaarUrl ? "Aadhaar Uploaded" : "Aadhaar Required"}
+            </span>
+          </h2>
+
+          <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+            <div>
+              <p className="font-semibold text-slate-900 dark:text-white">Aadhaar Government ID Document</p>
+              <p className="text-slate-500 dark:text-slate-400 font-normal mt-0.5">
+                Upload front/back Aadhaar card copy or PDF for verified account status.
+              </p>
+              {aadhaarUrl && (
+                <a
+                  href={aadhaarUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 font-medium hover:underline mt-2"
+                >
+                  <FileText className="w-3.5 h-3.5" /> View Uploaded Aadhaar Document
+                </a>
+              )}
+            </div>
+
+            {editMode && (
+              <label className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white rounded-lg cursor-pointer text-xs font-medium hover:bg-teal-700 shrink-0">
+                <Upload className="w-3.5 h-3.5" />
+                <span>{uploadingAadhaar ? "Uploading..." : "Upload Aadhaar ID"}</span>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => handleFileUpload(e, "aadhaar_url")}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+        </div>
+
+        {/* ------------------------------------------------------------- */}
+        {/* SECTION 3: DOCTOR CREDENTIALS & CV UPLOAD (DOCTOR ONLY) */}
+        {/* ------------------------------------------------------------- */}
+        {isDoctor && (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-4">
+            <h2 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Stethoscope className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <span>Doctor Credentials & Clinical CV / Resume</span>
+              </span>
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                profile?.verification_status === "approved"
+                  ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300"
+                  : profile?.verification_status === "rejected"
+                  ? "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300"
+                  : "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300"
+              }`}>
+                Medical Board Verification: {profile?.verification_status || "Pending"}
+              </span>
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Medical Specialization</label>
+                <input
+                  type="text"
+                  disabled={!editMode}
+                  value={specialization}
+                  onChange={(e) => setSpecialization(e.target.value)}
+                  placeholder="e.g. Cardiologist, Neurologist"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Hospital / Clinic Affiliation</label>
+                <input
+                  type="text"
+                  disabled={!editMode}
+                  value={hospital}
+                  onChange={(e) => setHospital(e.target.value)}
+                  placeholder="e.g. AIIMS Delhi, Apollo Hospital"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Professional Email</label>
+                <input
+                  type="email"
+                  disabled={!editMode}
+                  value={professionalEmail}
+                  onChange={(e) => setProfessionalEmail(e.target.value)}
+                  placeholder="dr.name@hospital.org"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">MCI / State Medical License No.</label>
+                <input
+                  type="text"
+                  disabled={!editMode}
+                  value={mciNumber}
+                  onChange={(e) => setMciNumber(e.target.value)}
+                  placeholder="MCI-12345-REG"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Consultation Fee (₹)</label>
+                <input
+                  type="text"
+                  disabled={!editMode}
+                  value={consultingFee}
+                  onChange={(e) => setConsultingFee(e.target.value)}
+                  placeholder="e.g. 500"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Years of Clinical Experience</label>
+                <input
+                  type="number"
+                  disabled={!editMode}
+                  value={experienceYears}
+                  onChange={(e) => setExperienceYears(e.target.value)}
+                  placeholder="10"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+                />
+              </div>
+            </div>
+
+            {/* Doctor CV / Resume PDF Upload Box */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs pt-2">
+              <div>
+                <p className="font-semibold text-slate-900 dark:text-white">Doctor Curriculum Vitae (CV / Resume PDF)</p>
+                <p className="text-slate-500 dark:text-slate-400 font-normal mt-0.5">
+                  Required for Medical Board verification and patient discovery credentials.
+                </p>
+                {cvUrl && (
+                  <a
+                    href={cvUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 font-medium hover:underline mt-2"
+                  >
+                    <FileText className="w-3.5 h-3.5" /> View Uploaded CV PDF
+                  </a>
+                )}
+              </div>
+
+              {editMode && (
+                <label className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white rounded-lg cursor-pointer text-xs font-medium hover:bg-teal-700 shrink-0">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{uploadingCV ? "Uploading..." : "Upload Doctor CV PDF"}</span>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => handleFileUpload(e, "cv_url")}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+          </div>
         )}
 
-        {/* AVAILABILITY SECTION — Doctor only */}
+        {/* ------------------------------------------------------------- */}
+        {/* SECTION 4: DOCTOR AVAILABILITY SLOTS (DOCTOR ONLY) */}
+        {/* ------------------------------------------------------------- */}
         {isDoctor && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h2 className="font-bold text-slate-900 text-lg">
-                  Consultation Availability
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Set your available days and time slots for patient bookings
-                </p>
-              </div>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h2 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <Clock className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <span>Consultation Availability Slots</span>
+              </h2>
               <button
                 onClick={handleAddSlot}
-                className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold transition-colors"
+                className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors"
               >
-                + Add Slot
+                + Add Time Slot
               </button>
             </div>
 
             {availSlots.length === 0 ? (
-              <div className="text-center py-8 bg-slate-50 rounded-xl">
-                <p className="text-3xl mb-2">📅</p>
-                <p className="text-slate-600 font-semibold text-sm">
-                  No availability set
-                </p>
-                <p className="text-slate-400 text-xs mt-1">
-                  Add your available days so patients can book appointments
-                </p>
-                <button
-                  onClick={handleAddSlot}
-                  className="mt-3 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold transition-colors"
-                >
-                  + Add First Slot
-                </button>
-              </div>
+              <p className="text-slate-500 text-center py-4">No availability slots configured yet.</p>
             ) : (
               <div className="space-y-3">
                 {availSlots.map((slot, index) => (
-                  <div
-                    key={slot.id || index}
-                    className={`p-4 rounded-xl border-2 transition-colors ${
-                      slot.is_active
-                        ? "border-teal-200 bg-teal-50/30"
-                        : "border-slate-200 bg-slate-50"
-                    }`}
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                      {/* Day */}
+                  <div key={index} className="p-3.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                          Day
-                        </label>
+                        <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Day</label>
                         <select
                           value={slot.day_of_week}
-                          onChange={(e) =>
-                            handleUpdateSlot(
-                              index,
-                              "day_of_week",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                          onChange={(e) => handleUpdateSlot(index, "day_of_week", e.target.value)}
+                          className="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-medium"
                         >
-                          {dayNames.map((day, i) => (
-                            <option key={day} value={i}>
-                              {day}
-                            </option>
+                          {dayNames.map((d, i) => (
+                            <option key={d} value={i}>{d}</option>
                           ))}
                         </select>
                       </div>
 
-                      {/* Start Time */}
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                          Start Time
-                        </label>
-                        <select
+                        <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Start Time</label>
+                        <input
+                          type="time"
                           value={slot.start_time}
-                          onChange={(e) =>
-                            handleUpdateSlot(
-                              index,
-                              "start_time",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-                        >
-                          {Array.from({ length: 24 }, (_, h) =>
-                            ["00", "30"].map((m) => {
-                              const time = `${h.toString().padStart(2, "0")}:${m}`;
-                              const period = h >= 12 ? "PM" : "AM";
-                              const displayH =
-                                h > 12 ? h - 12 : h === 0 ? 12 : h;
-                              return (
-                                <option key={time} value={time}>
-                                  {displayH}:{m} {period}
-                                </option>
-                              );
-                            }),
-                          ).flat()}
-                        </select>
+                          onChange={(e) => handleUpdateSlot(index, "start_time", e.target.value)}
+                          className="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-medium"
+                        />
                       </div>
 
-                      {/* End Time */}
                       <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                          End Time
-                        </label>
-                        <select
+                        <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">End Time</label>
+                        <input
+                          type="time"
                           value={slot.end_time}
-                          onChange={(e) =>
-                            handleUpdateSlot(index, "end_time", e.target.value)
-                          }
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-                        >
-                          {Array.from({ length: 24 }, (_, h) =>
-                            ["00", "30"].map((m) => {
-                              const time = `${h.toString().padStart(2, "0")}:${m}`;
-                              const period = h >= 12 ? "PM" : "AM";
-                              const displayH =
-                                h > 12 ? h - 12 : h === 0 ? 12 : h;
-                              return (
-                                <option key={time} value={time}>
-                                  {displayH}:{m} {period}
-                                </option>
-                              );
-                            }),
-                          ).flat()}
-                        </select>
+                          onChange={(e) => handleUpdateSlot(index, "end_time", e.target.value)}
+                          className="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white font-medium"
+                        />
                       </div>
 
-                      {/* Slot Duration */}
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                          Slot (mins)
-                        </label>
-                        <select
-                          value={slot.slot_duration_minutes}
-                          onChange={(e) =>
-                            handleUpdateSlot(
-                              index,
-                              "slot_duration_minutes",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-                        >
-                          {[15, 30, 45, 60].map((d) => (
-                            <option key={d} value={d}>
-                              {d} min
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex gap-2">
+                      <div className="flex items-end gap-2">
                         <button
-                          onClick={() =>
-                            handleUpdateSlot(
-                              index,
-                              "is_active",
-                              !slot.is_active,
-                            )
-                          }
-                          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors border ${
+                          onClick={() => handleUpdateSlot(index, "is_active", !slot.is_active)}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                             slot.is_active
-                              ? "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100"
-                              : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
+                              ? "bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800"
+                              : "bg-slate-100 dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800"
                           }`}
                         >
                           {slot.is_active ? "Active" : "Inactive"}
                         </button>
                         <button
                           onClick={() => handleRemoveSlot(index)}
-                          className="px-3 py-2 rounded-xl bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-colors text-xs font-semibold"
+                          className="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-600 border border-rose-200 dark:border-rose-800 font-bold"
                         >
                           ✕
                         </button>
                       </div>
                     </div>
-
-                    {/* Slot Preview */}
-                    {slot.start_time && slot.end_time && (
-                      <p className="text-xs text-slate-400 mt-2">
-                        {(() => {
-                          const [sh, sm] = slot.start_time
-                            .split(":")
-                            .map(Number);
-                          const [eh, em] = slot.end_time.split(":").map(Number);
-                          const totalMins = eh * 60 + em - (sh * 60 + sm);
-                          const slots = Math.floor(
-                            totalMins / slot.slot_duration_minutes,
-                          );
-                          return `📊 ${slots} slots available (${slot.slot_duration_minutes} min each)`;
-                        })()}
-                      </p>
-                    )}
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Save Availability */}
             {availabilityMessage && (
-              <div
-                className={`px-4 py-3 rounded-xl text-sm font-medium ${
-                  availabilityMessage.type === "success"
-                    ? "bg-teal-50 text-teal-700 border border-teal-100"
-                    : "bg-red-50 text-red-700 border border-red-100"
-                }`}
-              >
+              <div className={`p-3 rounded-lg font-medium border ${availabilityMessage.type === "success" ? "bg-teal-50 dark:bg-teal-950 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300" : "bg-rose-50 dark:bg-rose-950 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300"}`}>
                 {availabilityMessage.text}
               </div>
             )}
@@ -1510,61 +922,315 @@ export default function SettingsPage() {
             <button
               onClick={handleSaveAvailability}
               disabled={savingAvailability}
-              className="w-full py-3 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white font-semibold rounded-xl transition-colors text-sm"
+              className="w-full py-2 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 border border-slate-800 text-white font-medium text-xs rounded-lg transition-colors"
             >
-              {savingAvailability ? "Saving..." : "💾 Save Availability"}
+              {savingAvailability ? "Saving Schedule..." : "Save Availability Slots"}
             </button>
           </div>
         )}
 
-        {/* Danger Zone */}
-        <div className="bg-white rounded-2xl border border-red-200 p-6 space-y-4">
-          <h2 className="font-bold text-red-700 text-lg border-b border-red-100 pb-3">
-            ⚠️ Danger Zone
-          </h2>
-          <div className="flex items-center justify-between">
+        {/* ------------------------------------------------------------- */}
+        {/* SECTION 5: PATIENT HEALTH PROFILE & ABHA DETAILS (PATIENT) */}
+        {/* ------------------------------------------------------------- */}
+        {!isDoctor && (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-4">
+            <h2 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center gap-2">
+              <HeartPulse className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span>Patient Health Profile & ABHA Details</span>
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Date of Birth</label>
+                <input
+                  type="date"
+                  disabled={!editMode}
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Blood Group</label>
+                <select
+                  disabled={!editMode}
+                  value={bloodGroup}
+                  onChange={(e) => setBloodGroup(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+                >
+                  <option value="">Select Blood Group</option>
+                  {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bg) => (
+                    <option key={bg} value={bg}>{bg}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Height (cm)</label>
+                <input
+                  type="number"
+                  disabled={!editMode}
+                  value={heightCm}
+                  onChange={(e) => setHeightCm(e.target.value)}
+                  placeholder="175"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Weight (kg)</label>
+                <input
+                  type="number"
+                  disabled={!editMode}
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(e.target.value)}
+                  placeholder="70"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">ABHA Health Number</label>
+                <input
+                  type="text"
+                  disabled={!editMode}
+                  value={abhaNumber}
+                  onChange={(e) => setAbhaNumber(e.target.value)}
+                  placeholder="12-3456-7890-1234"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Insurance Provider & Policy</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    disabled={!editMode}
+                    value={insuranceProvider}
+                    onChange={(e) => setInsuranceProvider(e.target.value)}
+                    placeholder="Provider Name"
+                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+                  />
+                  <input
+                    type="text"
+                    disabled={!editMode}
+                    value={insurancePolicy}
+                    onChange={(e) => setInsurancePolicy(e.target.value)}
+                    placeholder="Policy No."
+                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {bmi && (
+              <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">Calculated Body Mass Index (BMI):</span>
+                <span className={`font-bold ${bmiCategory(bmi).color}`}>
+                  {bmi} ({bmiCategory(bmi).label})
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------- */}
+        {/* SECTION 6: PATIENT MEDICAL HISTORY (PATIENT) */}
+        {/* ------------------------------------------------------------- */}
+        {!isDoctor && (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-4">
+            <h2 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span>Medical History & Clinical Background</span>
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Known Allergies</label>
+                <textarea
+                  disabled={!editMode}
+                  rows={2}
+                  value={allergies}
+                  onChange={(e) => setAllergies(e.target.value)}
+                  placeholder="e.g. Penicillin, Peanuts, Dust"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 resize-none disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Current Medications</label>
+                <textarea
+                  disabled={!editMode}
+                  rows={2}
+                  value={currentMedications}
+                  onChange={(e) => setCurrentMedications(e.target.value)}
+                  placeholder="e.g. Metformin 500mg daily"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 resize-none disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Chronic Medical Conditions</label>
+                <textarea
+                  disabled={!editMode}
+                  rows={2}
+                  value={medicalConditions}
+                  onChange={(e) => setMedicalConditions(e.target.value)}
+                  placeholder="e.g. Hypertension, Asthma"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 resize-none disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Past Surgeries / Procedures</label>
+                <textarea
+                  disabled={!editMode}
+                  rows={2}
+                  value={pastSurgeries}
+                  onChange={(e) => setPastSurgeries(e.target.value)}
+                  placeholder="e.g. Appendectomy (2020)"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 resize-none disabled:opacity-60"
+                />
+              </div>
+            </div>
+
             <div>
-              <p className="font-semibold text-slate-900 text-sm">Sign Out</p>
-              <p className="text-xs text-slate-500">
-                Sign out from all devices
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1 text-xs">Family Health History</label>
+              <textarea
+                disabled={!editMode}
+                rows={2}
+                value={familyHistory}
+                onChange={(e) => setFamilyHistory(e.target.value)}
+                placeholder="e.g. History of Type 2 Diabetes (Father)"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-teal-500 resize-none disabled:opacity-60"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------- */}
+        {/* SECTION 7: EMERGENCY CONTACT INFORMATION */}
+        {/* ------------------------------------------------------------- */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-4">
+          <h2 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center gap-2">
+            <PhoneCall className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+            <span>Emergency Contact Information</span>
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Contact Name</label>
+              <input
+                type="text"
+                disabled={!editMode}
+                value={emergencyName}
+                onChange={(e) => setEmergencyName(e.target.value)}
+                placeholder="Full Contact Name"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Relationship</label>
+              <input
+                type="text"
+                disabled={!editMode}
+                value={emergencyRelation}
+                onChange={(e) => setEmergencyRelation(e.target.value)}
+                placeholder="e.g. Spouse, Parent, Sibling"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Emergency Phone</label>
+              <input
+                type="text"
+                disabled={!editMode}
+                value={emergencyPhone}
+                onChange={(e) => setEmergencyPhone(e.target.value)}
+                placeholder="+91 98765 00000"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-60"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ------------------------------------------------------------- */}
+        {/* SECTION 8: SYSTEM STATS & ACCOUNT STATUS (READ ONLY) */}
+        {/* ------------------------------------------------------------- */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-4">
+          <h2 className="font-bold text-sm text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center gap-2">
+            <Award className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+            <span>Account Stats & Reliability Metrics</span>
+          </h2>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+              <span className="text-[10px] text-slate-500 uppercase font-semibold block">Reliability Score</span>
+              <span className="text-base font-bold text-teal-600 dark:text-teal-400">
+                {profile?.reliability_rating || "5.0"} ★
+              </span>
+            </div>
+
+            <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+              <span className="text-[10px] text-slate-500 uppercase font-semibold block">Consultations</span>
+              <span className="text-base font-bold text-slate-900 dark:text-white">
+                {profile?.consulting_count || 0}
+              </span>
+            </div>
+
+            <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+              <span className="text-[10px] text-slate-500 uppercase font-semibold block">Success Rate</span>
+              <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                {profile?.success_count || 0}
+              </span>
+            </div>
+
+            <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+              <span className="text-[10px] text-slate-500 uppercase font-semibold block">Account Status</span>
+              <span className="text-xs font-semibold text-teal-600 capitalize block mt-1">
+                {profile?.account_status || "Active"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ------------------------------------------------------------- */}
+        {/* SECTION 9: ACCOUNT SECURITY & SESSION MANAGEMENT (PROFESSIONAL SIGN OUT) */}
+        {/* ------------------------------------------------------------- */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div>
+              <h2 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <Lock className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <span>Account Security & Session Management</span>
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5">
+                Manage active authentication session and security preferences for this device.
               </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-xs pt-1">
+            <div>
+              <p className="font-semibold text-slate-900 dark:text-white">Active Session Sign Out</p>
+              <p className="text-slate-500 dark:text-slate-400 font-normal">Safely end active session on this device</p>
             </div>
             <button
               onClick={async () => {
                 const supabase = createClient();
                 await supabase.auth.signOut();
-                window.location.href = "/login";
+                router.push("/");
               }}
-              className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors"
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 font-medium text-xs rounded-lg transition-colors border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-1.5"
             >
-              Sign Out
+              <span>Sign Out</span>
             </button>
           </div>
         </div>
-
-        {/* Save Button */}
-        {editMode && (
-          <>
-            {message && (
-              <div
-                className={`px-4 py-3 rounded-xl text-sm font-medium ${
-                  message.type === "success"
-                    ? "bg-teal-50 text-teal-700 border border-teal-100"
-                    : "bg-red-50 text-red-700 border border-red-100"
-                }`}
-              >
-                {message.text}
-              </div>
-            )}
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="w-full py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white font-semibold rounded-xl transition-colors text-sm"
-            >
-              {saving ? "Saving..." : "Save Profile"}
-            </button>
-          </>
-        )}
       </div>
     </DashboardLayout>
   );

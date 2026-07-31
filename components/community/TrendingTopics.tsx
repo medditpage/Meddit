@@ -211,7 +211,7 @@ const cardVariants = cva(
   },
 );
 
-const actionButtonVariants = cva(
+export const actionButtonVariants = cva(
   "flex items-center gap-1.5 text-xs font-medium rounded-md px-2 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-50",
   {
     variants: {

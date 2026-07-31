@@ -3,8 +3,36 @@ import * as React from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { createClient } from "@/utils/supabase/client";
 
+
+interface VerificationUser {
+  id: string;
+  name?: string;
+  email?: string;
+  role: "doctor" | "patient" | string;
+  verification_status?: "pending" | "approved" | "rejected" | string;
+  medical_license_number?: string;
+  specialization?: string;
+  hospital_affiliation?: string;
+  experience_years?: number;
+  consultation_fee?: number;
+  degree_certificate_url?: string;
+  identity_proof_url?: string;
+  admin_notes?: string;
+  created_at?: string;
+  cv_url?: string;
+  verification_notes?: string | null;
+  about?: string;
+  account_status?: string;
+  hospital?: string;
+  location?: string;
+  mci_number?: string;
+  consulting_fee?: number;
+  languages?: string;
+  aadhaar_url?: string;
+}
+
 export default function VerificationsPage() {
-  const [doctors, setDoctors] = React.useState<any[]>([]);
+  const [doctors, setDoctors] = React.useState<VerificationUser[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState<
     "pending" | "approved" | "rejected"
@@ -25,19 +53,23 @@ export default function VerificationsPage() {
     label: string;
   } | null>(null);
 
-  const fetchDoctors = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .in("role", ["doctor", "patient"])
-      .order("created_at", { ascending: false });
-    if (data) setDoctors(data);
-    setLoading(false);
-  };
-
   React.useEffect(() => {
+    let isMounted = true;
+    const fetchDoctors = async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("role", ["doctor", "patient"])
+        .order("created_at", { ascending: false });
+      if (!isMounted) return;
+      if (data) setDoctors(data as VerificationUser[]);
+      setLoading(false);
+    };
     fetchDoctors();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const getSignedUrl = async (path: string, bucket = "documents") => {
@@ -82,9 +114,20 @@ export default function VerificationsPage() {
         verification_notes: noteText || null,
       })
       .eq("id", noteModal.doctorId);
+    setDoctors((prev) =>
+      prev.map((d) =>
+        d.id === noteModal.doctorId
+          ? {
+              ...d,
+              verification_status: noteModal.action,
+              is_verified: noteModal.action === "approved",
+              verification_notes: noteText || null,
+            }
+          : d,
+      ),
+    );
     setNoteModal(null);
     setProcessing(null);
-    fetchDoctors();
   };
 
   const handleSuspend = async (userId: string, currentStatus: string) => {
@@ -100,7 +143,9 @@ export default function VerificationsPage() {
       .from("profiles")
       .update({ account_status: newStatus })
       .eq("id", userId);
-    fetchDoctors();
+    setDoctors((prev) =>
+      prev.map((d) => (d.id === userId ? { ...d, account_status: newStatus } : d)),
+    );
   };
 
   const byType = doctors.filter((d) => d.role === userType);
@@ -308,7 +353,7 @@ export default function VerificationsPage() {
                       {doc.aadhaar_url && (
                         <button
                           onClick={() =>
-                            handleViewDoc(doc.aadhaar_url, "Aadhaar Card")
+                            handleViewDoc(doc.aadhaar_url || "", "Aadhaar Card")
                           }
                           className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 transition-colors font-medium shrink-0"
                         >
@@ -342,7 +387,7 @@ export default function VerificationsPage() {
                       {doc.cv_url && (
                         <button
                           onClick={() =>
-                            handleViewDoc(doc.cv_url, "Resume / CV")
+                            handleViewDoc(doc.cv_url || "", "Resume / CV")
                           }
                           className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 transition-colors font-medium shrink-0"
                         >

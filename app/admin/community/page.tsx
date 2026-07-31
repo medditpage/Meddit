@@ -3,33 +3,67 @@ import * as React from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { createClient } from "@/utils/supabase/client";
 
+interface CommunityPost {
+  id: string;
+  title: string;
+  content: string;
+  created_at: string;
+  category?: string;
+  author?: { name?: string; role?: string };
+  comments?: { count: number }[];
+  post_upvotes?: { count: number }[];
+}
+
+interface PostComment {
+  id: string;
+  content: string;
+  created_at: string;
+  post_id: string;
+  author?: { name?: string; role?: string };
+}
+
+function formatTime(ts: string, now = Date.now()) {
+  const diff = now - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(mins / 60);
+  const days = Math.floor(hours / 24);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
+}
+
 export default function AdminCommunityPage() {
-  const [posts, setPosts] = React.useState<any[]>([]);
+  const [posts, setPosts] = React.useState<CommunityPost[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [deleting, setDeleting] = React.useState<string | null>(null);
   const [expandedPost, setExpandedPost] = React.useState<string | null>(null);
-  const [postComments, setPostComments] = React.useState<Record<string, any[]>>(
+  const [postComments, setPostComments] = React.useState<Record<string, PostComment[]>>(
     {},
   );
   const [loadingComments, setLoadingComments] = React.useState<string | null>(
     null,
   );
 
-  const fetchPosts = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("community_posts")
-      .select(
-        "*, author:profiles(name, role), comments(count), post_upvotes(count)",
-      )
-      .order("created_at", { ascending: false });
-    if (data) setPosts(data);
-    setLoading(false);
-  };
-
   React.useEffect(() => {
+    let isMounted = true;
+    const fetchPosts = async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("community_posts")
+        .select(
+          "*, author:profiles(name, role), comments(count), post_upvotes(count)",
+        )
+        .order("created_at", { ascending: false });
+      if (!isMounted) return;
+      if (data) setPosts(data as CommunityPost[]);
+      setLoading(false);
+    };
     fetchPosts();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const fetchComments = async (postId: string) => {
@@ -41,7 +75,7 @@ export default function AdminCommunityPage() {
       .select("*, author:profiles(name, role)")
       .eq("post_id", postId)
       .order("created_at", { ascending: true });
-    if (data) setPostComments((prev) => ({ ...prev, [postId]: data }));
+    if (data) setPostComments((prev) => ({ ...prev, [postId]: data as PostComment[] }));
     setLoadingComments(null);
   };
 
@@ -63,8 +97,8 @@ export default function AdminCommunityPage() {
     await supabase.from("post_upvotes").delete().eq("post_id", postId);
     await supabase.from("post_reports").delete().eq("post_id", postId);
     await supabase.from("community_posts").delete().eq("id", postId);
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
     setDeleting(null);
-    fetchPosts();
   };
 
   const handleDeleteComment = async (commentId: string, postId: string) => {
@@ -75,7 +109,6 @@ export default function AdminCommunityPage() {
       ...prev,
       [postId]: prev[postId].filter((c) => c.id !== commentId),
     }));
-    fetchPosts();
   };
 
   const filtered = posts.filter(
@@ -85,17 +118,6 @@ export default function AdminCommunityPage() {
       p.author?.name?.toLowerCase().includes(search.toLowerCase()) ||
       p.content?.toLowerCase().includes(search.toLowerCase()),
   );
-
-  const formatTime = (ts: string) => {
-    const diff = Date.now() - new Date(ts).getTime();
-    const mins = Math.floor(diff / 60000);
-    const hours = Math.floor(mins / 60);
-    const days = Math.floor(hours / 24);
-    if (mins < 1) return "Just now";
-    if (mins < 60) return `${mins}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
 
   return (
     <AdminLayout>

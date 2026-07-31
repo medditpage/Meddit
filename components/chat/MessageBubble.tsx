@@ -294,7 +294,7 @@ export const MessageBubble = React.forwardRef<
           }
           const decrypted = await decryptMessage(rawContent, privateKey);
           setDecryptedText(decrypted);
-        } catch (err) {
+        } catch {
           setDecryptedText("🔐 [Decryption processing failure]");
         }
       };

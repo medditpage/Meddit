@@ -108,18 +108,15 @@ const navItems = [
   },
 ];
 
-export function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [isMobileOpen, setIsMobileOpen] = React.useState(false);
+interface SidebarProps {
+  pathname: string;
+  router: ReturnType<typeof useRouter>;
+  onNav?: () => void;
+  onSignOut: () => Promise<void>;
+}
 
-  const handleSignOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = "/login";
-  };
-
-  const Sidebar = ({ onNav }: { onNav?: () => void }) => (
+function Sidebar({ pathname, router, onNav, onSignOut }: SidebarProps) {
+  return (
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="h-16 flex items-center gap-3 px-5 border-b border-slate-200 shrink-0">
@@ -174,7 +171,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           Back to App
         </button>
         <button
-          onClick={handleSignOut}
+          onClick={onSignOut}
           className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
         >
           <svg
@@ -193,12 +190,24 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
+}
+
+export function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isMobileOpen, setIsMobileOpen] = React.useState(false);
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-white border-r border-slate-200 fixed h-full z-30">
-        <Sidebar />
+        <Sidebar pathname={pathname} router={router} onSignOut={handleSignOut} />
       </aside>
 
       {/* Mobile Overlay */}
@@ -209,7 +218,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             onClick={() => setIsMobileOpen(false)}
           />
           <aside className="absolute left-0 top-0 h-full w-64 bg-white shadow-xl z-10">
-            <Sidebar onNav={() => setIsMobileOpen(false)} />
+            <Sidebar
+              pathname={pathname}
+              router={router}
+              onNav={() => setIsMobileOpen(false)}
+              onSignOut={handleSignOut}
+            />
           </aside>
         </div>
       )}

@@ -28,24 +28,6 @@ const SpinnerIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const XIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    aria-hidden="true"
-  >
-    <path d="M18 6 6 18" />
-    <path d="m6 6 12 12" />
-  </svg>
-);
 const footerVariants = cva("w-full transition-colors duration-200 border-t", {
   variants: {
     variant: {
@@ -86,7 +68,7 @@ const Footer = React.forwardRef<HTMLElement, FooterProps>(
       disabled = false,
       topContent,
       bottomContent,
-      companyName,
+      companyName = "Medit",
       emergencyNumber,
       children,
       ...props
@@ -101,7 +83,6 @@ const Footer = React.forwardRef<HTMLElement, FooterProps>(
         role="contentinfo"
         className={cn(footerVariants({ variant, isDisabled, className }))}
         aria-busy={isLoading}
-        aria-disabled={isDisabled}
         {...props}
       >
         {isLoading && (
@@ -124,11 +105,14 @@ const Footer = React.forwardRef<HTMLElement, FooterProps>(
           )}
 
           {/* Bottom Legal / Copyright Area */}
-          {bottomContent && (
-            <div className="py-6 border-t border-inherit/10 flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
-              {bottomContent}
-            </div>
-          )}
+          <div className="py-6 border-t border-inherit/10 flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
+            {bottomContent || (
+              <>
+                <p>&copy; {new Date().getFullYear()} {companyName}. All rights reserved.</p>
+                {emergencyNumber && <p className="text-xs">Emergency Helpline: {emergencyNumber}</p>}
+              </>
+            )}
+          </div>
         </div>
       </footer>
     );

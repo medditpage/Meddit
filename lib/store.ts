@@ -5,6 +5,7 @@ interface User {
   name: string;
   role: string;
   avatarInitials: string;
+  specialization?: string;
 }
 
 interface AppState {

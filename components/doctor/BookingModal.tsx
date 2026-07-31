@@ -1,5 +1,4 @@
 import * as React from "react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 
 interface BookingModalProps {
@@ -19,14 +18,16 @@ export const BookingModal = ({
 }: BookingModalProps) => {
   const [isConfirming, setIsConfirming] = React.useState(false);
   const [isSuccess, setIsSuccess] = React.useState(false);
+  const [prevIsOpen, setPrevIsOpen] = React.useState(isOpen);
 
   // Reset state when opened
-  React.useEffect(() => {
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
       setIsConfirming(false);
       setIsSuccess(false);
     }
-  }, [isOpen]);
+  }
 
   if (!isOpen) return null;
 

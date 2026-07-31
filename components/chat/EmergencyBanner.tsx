@@ -127,7 +127,6 @@ export const EmergencyBanner = React.forwardRef<
           emergencyBannerVariants({ variant, isDisabled, className }),
         )}
         aria-busy={isLoading}
-        aria-disabled={isDisabled}
         role="alert"
         {...props}
       >

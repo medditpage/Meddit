@@ -210,7 +210,7 @@ const cardVariants = cva(
   },
 );
 
-const actionButtonVariants = cva(
+export const actionButtonVariants = cva(
   "flex items-center gap-1.5 text-xs font-medium rounded-md px-2 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-50",
   {
     variants: {
@@ -219,15 +219,15 @@ const actionButtonVariants = cva(
         secondary:
           "text-slate-500 hover:bg-slate-200 hover:text-slate-900 focus-visible:ring-slate-400",
         inverted:
-          "text-slate-400 hover:bg-slate-800 hover:text-white focus-visible:ring-slate-400",
+          "text-slate-400 hover:bg-slate-800 hover:text-slate-200 focus-visible:ring-slate-400",
         outlined:
           "text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-slate-400",
         ghost:
-          "text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-slate-400",
+          "text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-slate-400",
       },
     },
     defaultVariants: {
-      variant: "outlined",
+      variant: "secondary",
     },
   },
 );
@@ -314,7 +314,7 @@ export const PatientStoryCard = React.forwardRef<
             isDark ? "text-inherit/80" : "text-slate-700",
           )}
         >
-          "{content}"
+          &quot;{content}&quot;
         </p>
 
         <div

@@ -3,8 +3,20 @@ import * as React from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { createClient } from "@/utils/supabase/client";
 
+interface AdminUserProfile {
+  id: string;
+  name?: string;
+  email?: string;
+  role: "doctor" | "patient" | string;
+  account_status?: "active" | "suspended" | string;
+  specialization?: string;
+  phone?: string;
+  created_at?: string;
+  verification_status?: string;
+}
+
 export default function UsersPage() {
-  const [users, setUsers] = React.useState<any[]>([]);
+  const [users, setUsers] = React.useState<AdminUserProfile[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [roleFilter, setRoleFilter] = React.useState<
@@ -15,19 +27,23 @@ export default function UsersPage() {
   >("all");
   const [processing, setProcessing] = React.useState<string | null>(null);
 
-  const fetchUsers = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .in("role", ["doctor", "patient"])
-      .order("created_at", { ascending: false });
-    if (data) setUsers(data);
-    setLoading(false);
-  };
-
   React.useEffect(() => {
+    let isMounted = true;
+    const fetchUsers = async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("role", ["doctor", "patient"])
+        .order("created_at", { ascending: false });
+      if (!isMounted) return;
+      if (data) setUsers(data as AdminUserProfile[]);
+      setLoading(false);
+    };
     fetchUsers();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleSuspend = async (userId: string, currentStatus: string) => {
@@ -44,8 +60,12 @@ export default function UsersPage() {
       .from("profiles")
       .update({ account_status: newStatus })
       .eq("id", userId);
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId ? { ...u, account_status: newStatus } : u,
+      ),
+    );
     setProcessing(null);
-    fetchUsers();
   };
 
   const handleDelete = async (userId: string, name: string) => {
@@ -59,15 +79,16 @@ export default function UsersPage() {
     setProcessing(userId);
     const supabase = createClient();
     await supabase.from("profiles").delete().eq("id", userId);
+    setUsers((prev) => prev.filter((u) => u.id !== userId));
     setProcessing(null);
-    fetchUsers();
   };
 
   const filtered = users.filter((u) => {
     const matchSearch =
       !search ||
       u.name?.toLowerCase().includes(search.toLowerCase()) ||
-      u.email?.toLowerCase().includes(search.toLowerCase());
+      u.email?.toLowerCase().includes(search.toLowerCase()) ||
+      u.specialization?.toLowerCase().includes(search.toLowerCase());
     const matchRole = roleFilter === "all" || u.role === roleFilter;
     const matchStatus =
       statusFilter === "all" || (u.account_status || "active") === statusFilter;
@@ -85,14 +106,19 @@ export default function UsersPage() {
     <AdminLayout>
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
               User Management
             </h1>
-            <p className="text-slate-500 mt-1 text-sm">
-              {filtered.length} users found
+            <p className="text-sm text-slate-500 mt-1">
+              View and manage registered doctors and patients
             </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full border border-slate-200">
+              Total: {users.length}
+            </span>
           </div>
         </div>
 
@@ -107,7 +133,7 @@ export default function UsersPage() {
           />
           <select
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value as any)}
+            onChange={(e) => setRoleFilter(e.target.value as "all" | "doctor" | "patient")}
             className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-white"
           >
             <option value="all">All Roles</option>
@@ -116,7 +142,7 @@ export default function UsersPage() {
           </select>
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
+            onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "suspended")}
             className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-white"
           >
             <option value="all">All Status</option>
@@ -236,7 +262,7 @@ export default function UsersPage() {
                         )}
                       </td>
                       <td className="px-5 py-4 text-xs text-slate-500">
-                        {formatDate(user.created_at)}
+                        {formatDate(user.created_at || "")}
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-end gap-2">
@@ -261,7 +287,7 @@ export default function UsersPage() {
                                 : "Suspend"}
                           </button>
                           <button
-                            onClick={() => handleDelete(user.id, user.name)}
+                            onClick={() => handleDelete(user.id, user.name || "")}
                             disabled={processing === user.id}
                             className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50"
                           >
@@ -298,7 +324,7 @@ export default function UsersPage() {
                           {user.name || "No name"}
                         </p>
                         <p className="text-xs text-slate-400">
-                          {user.role} • {formatDate(user.created_at)}
+                          {user.role} • {formatDate(user.created_at || "")}
                         </p>
                       </div>
                     </div>
@@ -331,7 +357,7 @@ export default function UsersPage() {
                         : "Suspend"}
                     </button>
                     <button
-                      onClick={() => handleDelete(user.id, user.name)}
+                      onClick={() => handleDelete(user.id, user.name || "")}
                       disabled={processing === user.id}
                       className="flex-1 py-2 rounded-xl text-xs font-semibold bg-red-50 text-red-600 border border-red-200 disabled:opacity-50"
                     >

@@ -3,25 +3,38 @@ import * as React from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { createClient } from "@/utils/supabase/client";
 
+interface PostReport {
+  id: string;
+  created_at: string;
+  reason?: string;
+  post_id?: string;
+  post?: { id: string; title: string; content: string; author_id: string };
+  reporter?: { name: string };
+}
+
 export default function AdminReportsPage() {
-  const [reports, setReports] = React.useState<any[]>([]);
+  const [reports, setReports] = React.useState<PostReport[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [resolving, setResolving] = React.useState<string | null>(null);
 
-  const fetchReports = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("post_reports")
-      .select(
-        "*, post:community_posts(id, title, content, author_id), reporter:profiles!post_reports_reported_by_fkey(name)",
-      )
-      .order("created_at", { ascending: false });
-    if (data) setReports(data);
-    setLoading(false);
-  };
-
   React.useEffect(() => {
+    let isMounted = true;
+    const fetchReports = async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("post_reports")
+        .select(
+          "*, post:community_posts(id, title, content, author_id), reporter:profiles!post_reports_reported_by_fkey(name)",
+        )
+        .order("created_at", { ascending: false });
+      if (!isMounted) return;
+      if (data) setReports(data as PostReport[]);
+      setLoading(false);
+    };
     fetchReports();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleDeletePost = async (postId: string, reportId: string) => {
@@ -32,8 +45,8 @@ export default function AdminReportsPage() {
     await supabase.from("post_upvotes").delete().eq("post_id", postId);
     await supabase.from("post_reports").delete().eq("post_id", postId);
     await supabase.from("community_posts").delete().eq("id", postId);
+    setReports((prev) => prev.filter((r) => r.id !== reportId));
     setResolving(null);
-    fetchReports();
   };
 
   const handleDismiss = async (reportId: string) => {
@@ -41,8 +54,8 @@ export default function AdminReportsPage() {
     setResolving(reportId);
     const supabase = createClient();
     await supabase.from("post_reports").delete().eq("id", reportId);
+    setReports((prev) => prev.filter((r) => r.id !== reportId));
     setResolving(null);
-    fetchReports();
   };
 
   const formatTime = (ts: string) =>
@@ -115,7 +128,7 @@ export default function AdminReportsPage() {
                     {report.post?.id && (
                       <button
                         onClick={() =>
-                          handleDeletePost(report.post.id, report.id)
+                          handleDeletePost(report.post?.id || "", report.id)
                         }
                         disabled={resolving === report.id}
                         className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"

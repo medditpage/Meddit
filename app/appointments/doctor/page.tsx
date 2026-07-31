@@ -41,60 +41,95 @@ const statusConfig: Record<
   },
 };
 
+interface DoctorAppointment {
+  id: string;
+  patient_id?: string;
+  doctor_id?: string;
+  appointment_date?: string;
+  appointment_time?: string;
+  status: string;
+  consultation_type?: string;
+  symptoms?: string;
+  doctor_notes?: string;
+  prescription?: string;
+  fee_amount?: number;
+  patient_feedback?: string;
+  patient_rating?: number;
+  reason?: string;
+  notes_by_doctor?: string;
+  prescription_notes?: string;
+  patient?: {
+    name?: string;
+    phone?: string;
+    avatar_initials?: string;
+    blood_group?: string;
+    allergies?: string;
+    current_medications?: string;
+    medical_conditions?: string;
+    see_doctor_mode?: boolean;
+    date_of_birth?: string;
+    emergency_contact_name?: string;
+    emergency_contact_phone?: string;
+  };
+}
+
 export default function DoctorAppointmentsPage() {
   const router = useRouter();
-  const [appointments, setAppointments] = React.useState<any[]>([]);
+  const [appointments, setAppointments] = React.useState<DoctorAppointment[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState<
     "pending" | "confirmed" | "completed" | "all"
   >("pending");
-  const [selectedApt, setSelectedApt] = React.useState<any>(null);
+  const [selectedApt, setSelectedApt] = React.useState<DoctorAppointment | null>(null);
   const [notes, setNotes] = React.useState("");
   const [prescription, setPrescription] = React.useState("");
   const [savingNotes, setSavingNotes] = React.useState(false);
-  const [authUserId, setAuthUserId] = React.useState<string | null>(null);
-
-  const fetchAppointments = async () => {
-    const supabase = createClient();
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-    if (!authUser) return;
-    setAuthUserId(authUser.id);
-
-    const { data, error } = await supabase
-      .from("appointments")
-      .select(
-        `
-        *,
-        patient:profiles!appointments_patient_id_fkey(
-          name, phone, avatar_initials, blood_group,
-          allergies, current_medications, medical_conditions,
-          see_doctor_mode, date_of_birth, emergency_contact_name,
-          emergency_contact_phone
-        )
-      `,
-      )
-      .eq("doctor_id", authUser.id)
-      .order("appointment_date", { ascending: true })
-      .order("appointment_time", { ascending: true });
-
-    if (error) console.error("Fetch error:", error);
-    if (data) setAppointments(data);
-    setLoading(false);
-  };
 
   React.useEffect(() => {
+    let isMounted = true;
+    const fetchAppointments = async () => {
+      const supabase = createClient();
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+      if (!isMounted || !authUser) return;
+
+      const { data, error } = await supabase
+        .from("appointments")
+        .select(
+          `
+          *,
+          patient:profiles!appointments_patient_id_fkey(
+            name, phone, avatar_initials, blood_group,
+            allergies, current_medications, medical_conditions,
+            see_doctor_mode, date_of_birth, emergency_contact_name,
+            emergency_contact_phone
+          )
+        `,
+        )
+        .eq("doctor_id", authUser.id)
+        .order("appointment_date", { ascending: true })
+        .order("appointment_time", { ascending: true });
+
+      if (!isMounted) return;
+      if (error) console.error("Fetch error:", error);
+      if (data) setAppointments(data as DoctorAppointment[]);
+      setLoading(false);
+    };
+
     fetchAppointments();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleStatusUpdate = async (
     aptId: string,
     status: string,
-    extra?: any,
+    extra?: Record<string, unknown>,
   ) => {
     const supabase = createClient();
-    const updateData: any = { status, ...extra };
+    const updateData: Record<string, unknown> = { status, ...extra };
     if (status === "confirmed")
       updateData.confirmed_at = new Date().toISOString();
     if (status === "completed")
@@ -108,7 +143,11 @@ export default function DoctorAppointmentsPage() {
       .from("appointments")
       .update(updateData)
       .eq("id", aptId);
-    if (!error) fetchAppointments();
+    if (!error) {
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === aptId ? { ...a, status } : a)),
+      );
+    }
   };
 
   const handleSaveNotes = async () => {
@@ -124,7 +163,13 @@ export default function DoctorAppointmentsPage() {
       .eq("id", selectedApt.id);
 
     if (!error) {
-      fetchAppointments();
+      setAppointments((prev) =>
+        prev.map((a) =>
+          a.id === selectedApt.id
+            ? { ...a, notes_by_doctor: notes, prescription_notes: prescription }
+            : a,
+        ),
+      );
       setSelectedApt(null);
       setNotes("");
       setPrescription("");
@@ -307,13 +352,13 @@ export default function DoctorAppointmentsPage() {
                       <div className="p-3 bg-slate-50 rounded-xl">
                         <p className="text-xs text-slate-400">Date</p>
                         <p className="text-sm font-semibold text-slate-900 mt-0.5">
-                          {formatDate(apt.appointment_date)}
+                          {formatDate(apt.appointment_date || "")}
                         </p>
                       </div>
                       <div className="p-3 bg-slate-50 rounded-xl">
                         <p className="text-xs text-slate-400">Time</p>
                         <p className="text-sm font-semibold text-slate-900 mt-0.5">
-                          {formatTime(apt.appointment_time)}
+                          {formatTime(apt.appointment_time || "")}
                         </p>
                       </div>
                       <div className="p-3 bg-slate-50 rounded-xl">
@@ -453,7 +498,7 @@ export default function DoctorAppointmentsPage() {
                           Patient Feedback
                         </p>
                         <p className="text-sm text-amber-800 mt-0.5 italic">
-                          "{apt.patient_feedback}"
+                          &quot;{apt.patient_feedback}&quot;
                         </p>
                       </div>
                     )}
@@ -552,7 +597,7 @@ export default function DoctorAppointmentsPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Doctor's Notes
+                  Doctor&apos;s Notes
                 </label>
                 <textarea
                   value={notes}

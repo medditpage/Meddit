@@ -1,20 +1,15 @@
-
-
 "use client";
 
+// app/login/page.tsx
+// Meddit Universal Authentication & OTP Workspace (Universal Theme Support)
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Button } from "@/components/ui/Button";
 import { createClient } from "@/utils/supabase/client";
-
-// ADD THIS AT THE TOP
-console.log("Checking Supabase Environment:");
-console.log("URL exists:", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
-console.log("Key exists:", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
 const loginSchema = z.object({
   role: z.enum(["doctor", "patient"]).optional(),
@@ -42,9 +37,8 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    setError,
-    watch,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -59,7 +53,7 @@ export default function LoginPage() {
 
   const selectedRole = watch("role");
 
-  // --- STEP 1: SUBMIT CREDENTIALS ---
+  // STEP 1: SUBMIT CREDENTIALS
   const onSubmitCredentials = async (data: LoginFormValues) => {
     setIsAuthenticating(true);
     setAuthError("");
@@ -67,73 +61,68 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        let hasError = false;
-        if (!data.name || data.name.trim() === "") {
-          setError("name", {
-            type: "manual",
-            message: "Full Name is required.",
-          });
-          hasError = true;
-        }
-        const cleanPhone = data.phone?.replace(/\D/g, "") || "";
-        if (!cleanPhone || cleanPhone.length !== 10) {
-          setError("phone", {
-            type: "manual",
-            message: "Enter a valid 10-digit mobile number.",
-          });
-          hasError = true;
-        }
-        if (hasError) {
-          setIsAuthenticating(false);
-          return;
-        }
+        const initials = data.name
+          ? data.name
+              .split(" ")
+              .map((n) => n[0])
+              .join("")
+              .substring(0, 2)
+              .toUpperCase()
+          : "PT";
 
-        // Send Registration & Trigger OTP
-        
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email: data.email,
           password: data.password,
           options: {
             data: {
-              full_name: data.name,
-              phone: data.phone,
-              role: data.role, // Passes the exact role!
+              name: data.name || (data.role === "doctor" ? "Dr. Specialist" : "Patient"),
+              role: data.role || "patient",
+              avatar_initials: initials,
+              phone: data.phone || "",
             },
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          setAuthError(error.message);
+          setIsAuthenticating(false);
+          return;
+        }
 
-        // Pause the flow and show the OTP screen!
+        if (signUpData.session) {
+          router.push("/dashboard");
+          return;
+        }
+
         setUnverifiedEmail(data.email);
         setStep("OTP");
+        setIsAuthenticating(false);
       } else {
-        // Normal Sign In
         const { error } = await supabase.auth.signInWithPassword({
           email: data.email,
           password: data.password,
         });
-        if (error) throw error;
-        router.push("/");
+
+        if (error) {
+          setAuthError(error.message);
+          setIsAuthenticating(false);
+          return;
+        }
+
+        router.push("/dashboard");
       }
-    } catch (error: any) {
-      console.error("Full Auth Error:", error);
-      // If error.message is missing, force it to read the object or show a fallback
-      if (typeof error === "object" && Object.keys(error).length === 0) {
-        setAuthError(
-          "Registration blocked: This email may already exist, or the mail server rejected it.",
-        );
-      } else {
-        setAuthError(error?.message || JSON.stringify(error));
-      }
-    } finally {
+    } catch (err: unknown) {
+      console.error("Auth Exception:", err);
+      setAuthError(err instanceof Error ? err.message : "Authentication error");
       setIsAuthenticating(false);
     }
   };
 
-  // --- STEP 2: VERIFY OTP ---
+  // STEP 2: VERIFY OTP
   const onVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!otpCode || otpCode.length !== 6) return;
+
     setIsAuthenticating(true);
     setAuthError("");
     const supabase = createClient();
@@ -142,238 +131,194 @@ export default function LoginPage() {
       const { error } = await supabase.auth.verifyOtp({
         email: unverifiedEmail,
         token: otpCode,
-        type: "signup", // Validates the 6-digit code
+        type: "signup",
       });
 
-      if (error) throw error;
+      if (error) {
+        setAuthError(error.message);
+        setIsAuthenticating(false);
+        return;
+      }
 
-      // OTP Success! Now they are officially allowed into the app.
-      router.push("/");
-    } catch (error: any) {
-      setAuthError("Invalid or expired verification code.");
-    } finally {
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      setAuthError(err instanceof Error ? err.message : "OTP Verification failed");
       setIsAuthenticating(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex w-full bg-white">
-      {/* Left Branding Panel (Hidden on mobile) */}
-      <div className="hidden lg:flex flex-1 flex-col justify-between bg-teal-900 text-white p-12 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-teal-800 to-slate-900 opacity-90" />
-        <div className="relative z-10 flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center font-bold text-white">
-            M
-          </div>
-          <span className="text-2xl font-bold tracking-tight">Medit</span>
-        </div>
-        <div className="relative z-10 max-w-lg mb-20">
-          <h1 className="text-4xl md:text-5xl font-black mb-6 leading-tight">
-            Clinical intelligence, simplified.
-          </h1>
-          <p className="text-teal-100 text-lg leading-relaxed mb-8">
-            Connect securely with your healthcare providers or manage your
-            medical practice end-to-end.
-          </p>
-        </div>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-center items-center p-4 sm:p-6 font-sans relative selection:bg-teal-500 selection:text-slate-950 transition-colors duration-200">
+      {/* Top Floating Theme Toggle */}
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
       </div>
 
-      {/* Right Form Panel */}
-      <div className="flex-1 flex flex-col justify-center items-center p-6 md:p-12 relative z-10">
-        <div className="w-full max-w-md space-y-8">
-          {/* OTP VERIFICATION VIEW */}
-          {step === "OTP" ? (
-            <div className="animate-in fade-in slide-in-from-right-4 space-y-6">
-              <div>
-                <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                  Verify your account
-                </h2>
-                <p className="text-slate-500">
-                  We sent a 6-digit secure verification code to{" "}
-                  <span className="font-semibold text-slate-900">
-                    {unverifiedEmail}
-                  </span>
-                  .
-                </p>
-              </div>
+      {/* Brand Header */}
+      <div className="flex items-center gap-2 mb-6 cursor-pointer" onClick={() => router.push("/")}>
+        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-500 to-teal-500 flex items-center justify-center text-white font-black text-sm shadow-lg">
+          m/
+        </div>
+        <span className="font-extrabold text-2xl text-slate-900 dark:text-white tracking-tight">meddit</span>
+      </div>
 
-              {authError && (
-                <div className="p-3 text-sm font-medium text-red-800 bg-red-100 rounded-lg">
-                  {authError}
-                </div>
-              )}
-
-              <form onSubmit={onVerifyOtp} className="space-y-5">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-900">
-                    Verification Code
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600 tracking-widest text-center text-2xl font-semibold"
-                    placeholder="000000"
-                    required
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  className="w-full py-3 mt-4"
-                  disabled={isAuthenticating || otpCode.length !== 6}
-                >
-                  {isAuthenticating ? "Verifying..." : "Confirm & Enter App"}
-                </Button>
-              </form>
-            </div>
-          ) : (
-            /* CREDENTIALS VIEW */
-            <div className="animate-in fade-in slide-in-from-left-4 space-y-6">
-              <div>
-                <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                  {isSignUp ? "Create an account" : "Welcome back"}
-                </h2>
-                <p className="text-slate-500">
-                  Please enter your details to continue.
-                </p>
-              </div>
-
-              {authError && (
-                <div className="p-3 text-sm font-medium text-red-800 bg-red-100 rounded-lg">
-                  {authError}
-                </div>
-              )}
-
-              <form
-                onSubmit={handleSubmit(onSubmitCredentials)}
-                className="space-y-5"
-              >
-                {isSignUp && (
-                  <div className="space-y-5 animate-in fade-in slide-in-from-top-2">
-                    {/* ROLE SELECTOR */}
-                    <div className="p-1 bg-slate-100 rounded-lg flex gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setValue("role", "patient")}
-                        className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${selectedRole === "patient" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-900"}`}
-                      >
-                        I am a Patient
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setValue("role", "doctor")}
-                        className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${selectedRole === "doctor" ? "bg-white shadow-sm text-teal-700" : "text-slate-500 hover:text-slate-900"}`}
-                      >
-                        I am a Doctor
-                      </button>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-900">
-                        Exact Full Name
-                      </label>
-                      <input
-                        type="text"
-                        {...register("name")}
-                        className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600"
-                        placeholder={
-                          selectedRole === "doctor"
-                            ? "Dr. Sarah Chen"
-                            : "Sarah Chen"
-                        }
-                      />
-                      {errors.name && (
-                        <p className="text-red-500 text-xs">
-                          {errors.name.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-900">
-                        Mobile Number
-                      </label>
-                      <input
-                        type="tel"
-                        {...register("phone")}
-                        maxLength={10}
-                        className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600"
-                        placeholder="9876543210"
-                      />
-                      {errors.phone && (
-                        <p className="text-red-500 text-xs">
-                          {errors.phone.message}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-900">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    {...register("email")}
-                    className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600"
-                    placeholder="user@example.com"
-                  />
-                  {errors.email && (
-                    <p className="text-red-500 text-xs">
-                      {errors.email.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-900">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    {...register("password")}
-                    className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600"
-                    placeholder="••••••••"
-                  />
-                  {errors.password && (
-                    <p className="text-red-500 text-xs">
-                      {errors.password.message}
-                    </p>
-                  )}
-                </div>
-
-                <Button
-                  type="submit"
-                  variant="primary"
-                  className="w-full py-3 mt-4"
-                  disabled={isAuthenticating}
-                >
-                  {isAuthenticating
-                    ? "Processing..."
-                    : isSignUp
-                      ? "Send Verification Code"
-                      : "Sign In"}
-                </Button>
-              </form>
-
-              <p className="text-center text-sm text-slate-500">
-                {isSignUp
-                  ? "Already have an account?"
-                  : "Don't have an account?"}{" "}
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(!isSignUp)}
-                  className="text-teal-600 font-semibold hover:underline"
-                >
-                  {isSignUp ? "Sign In" : "Create one now"}
-                </button>
+      {/* Main Auth Card */}
+      <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 transition-colors">
+        {step === "OTP" ? (
+          /* OTP VERIFICATION VIEW */
+          <div className="space-y-6 animate-in fade-in">
+            <div className="space-y-1">
+              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Verify your email</h2>
+              <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                We sent a 6-digit security code to{" "}
+                <span className="font-bold text-teal-600 dark:text-teal-300">{unverifiedEmail}</span>.
               </p>
             </div>
-          )}
-        </div>
+
+            {authError && (
+              <div className="p-3 text-xs font-bold text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-xl">
+                ⚠️ {authError}
+              </div>
+            )}
+
+            <form onSubmit={onVerifyOtp} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                  Verification Code
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  placeholder="000000"
+                  className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-center text-xl font-mono font-extrabold tracking-widest text-teal-600 dark:text-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isAuthenticating || otpCode.length !== 6}
+                className="w-full py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white font-extrabold text-xs rounded-full transition-all shadow-xs"
+              >
+                {isAuthenticating ? "Verifying..." : "Confirm & Enter Meddit Workspace"}
+              </button>
+            </form>
+          </div>
+        ) : (
+          /* CREDENTIALS VIEW */
+          <div className="space-y-6 animate-in fade-in">
+            <div className="space-y-1 text-center">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
+                {isSignUp ? "Join Meddit Healthcare" : "Welcome Back"}
+              </h2>
+              <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                {isSignUp ? "Create your verified patient or doctor account." : "Access your encrypted medical workspace."}
+              </p>
+            </div>
+
+            {authError && (
+              <div className="p-3 text-xs font-bold text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-xl">
+                ⚠️ {authError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit(onSubmitCredentials)} className="space-y-4">
+              {isSignUp && (
+                <div className="space-y-4">
+                  {/* Role Selector */}
+                  <div className="p-1 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setValue("role", "patient")}
+                      className={`flex-1 py-2 text-xs font-extrabold rounded-xl transition-all ${
+                        selectedRole === "patient"
+                          ? "bg-white dark:bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-slate-200 dark:border-teal-500/40 shadow-xs"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                      }`}
+                    >
+                      👤 Patient
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setValue("role", "doctor")}
+                      className={`flex-1 py-2 text-xs font-extrabold rounded-xl transition-all ${
+                        selectedRole === "doctor"
+                          ? "bg-white dark:bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-slate-200 dark:border-teal-500/40 shadow-xs"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                      }`}
+                    >
+                      👨‍⚕️ Doctor
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      {...register("name")}
+                      placeholder="e.g. Dr. Ananya Rao or Rohan Verma"
+                      className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 mb-1">Phone Number</label>
+                    <input
+                      type="text"
+                      {...register("phone")}
+                      placeholder="+91 98765 43210"
+                      className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 mb-1">Email Address *</label>
+                <input
+                  type="email"
+                  {...register("email")}
+                  placeholder="name@example.com"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                {errors.email && <p className="text-[10px] font-bold text-rose-500 mt-1">{errors.email.message}</p>}
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 mb-1">Password *</label>
+                <input
+                  type="password"
+                  {...register("password")}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                {errors.password && <p className="text-[10px] font-bold text-rose-500 mt-1">{errors.password.message}</p>}
+              </div>
+
+              <button
+                type="submit"
+                disabled={isAuthenticating}
+                className="w-full py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white font-extrabold text-xs rounded-full transition-all shadow-xs"
+              >
+                {isAuthenticating ? "Authenticating..." : isSignUp ? "Create Account & Send Code" : "Sign In to Meddit"}
+              </button>
+            </form>
+
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 text-center text-xs">
+              <button
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setAuthError("");
+                }}
+                className="text-slate-600 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 font-bold transition-colors"
+              >
+                {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

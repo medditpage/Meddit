@@ -287,17 +287,17 @@ const TagChip: React.FC<{
 };
 
 // ... Keeping your existing REPORT and APPOINTMENT constants here ...
-const REPORT_TYPE_LABELS: Record<PatientReport["type"], string> = {
+export const REPORT_TYPE_LABELS: Record<PatientReport["type"], string> = {
   lab: "Lab",
   prescription: "Rx",
   imaging: "Img",
   other: "Doc",
 };
-const REPORT_TYPE_COLORS: Record<
+export const REPORT_TYPE_COLORS: Record<
   PatientReport["type"],
   "teal" | "amber" | "slate" | "red"
 > = { lab: "teal", prescription: "amber", imaging: "slate", other: "slate" };
-const APPOINTMENT_STATUS_COLORS: Record<
+export const APPOINTMENT_STATUS_COLORS: Record<
   PatientAppointment["status"],
   "teal" | "amber" | "slate" | "red"
 > = { upcoming: "teal", completed: "slate", cancelled: "red" };
